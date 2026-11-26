@@ -162,7 +162,9 @@ export default function App() {
           />
         )}
 
-        {activePage === 'benchmarks' && <BenchmarksPage />}
+        {activePage === 'benchmarks' && (
+          <BenchmarksPage onOpenLesson={handleOpenLesson} />
+        )}
 
         {activePage === 'glossary' && <GlossaryPage />}
       </main>
