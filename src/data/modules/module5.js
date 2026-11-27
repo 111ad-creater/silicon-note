@@ -361,5 +361,133 @@ export const module5 = {
         },
       ],
     },
+    {
+      id: '5.7',
+      title: '5.7 科学压测军规、推理引擎横评与 Triton / TileLang 算子初体验',
+      isCore: true,
+      readTime: '7 分钟',
+      tags: ['核心主线', '科学压测', 'vLLM / SGLang', 'Triton', 'TileLang', 'CUTLASS'],
+      goal: '守住工业界科学压测四大铁律，看懂 vLLM/SGLang/TRT-LLM 选型逻辑，掌握 Triton 与 TileLang 算子融合入门路径。',
+      blocks: [
+        { type: 'heading', text: '核心直觉' },
+        {
+          type: 'paragraph',
+          text: '外行测出来的“大模型测速报告”发到群里一秒就被资深工程师挑出 3 个硬伤：没预热、没同步异步计时、只报平均延迟掩盖 P99 灾难。掌握科学压测军规，再用几十行类 Python 语法的 OpenAI Triton（或新一代跨平台算子语言 TileLang）亲手体验算子融合提速，你就真正拿到了推理系统的硬核入场券！',
+        },
+        { type: 'heading', text: '底层机制拆解' },
+        {
+          type: 'list',
+          ordered: true,
+          items: [
+            {
+              lead: '科学压测四大铁律：',
+              body: '① 强制 Warmup（预热 3~5 轮剔除冷启动与 JIT 编译）；② 异步精准计时（必须用 `torch.cuda.synchronize()` 或 `torch.cuda.Event`，直接 `time.time()` 测出的是假时间）；③ 锁死输出长度（`--ignore-eos` 防止提前吐结束符虚高速度）；④ 死盯 P95/P99 长尾延迟与 SLO 红线下的有效吞吐（Goodput）。',
+            },
+            {
+              lead: '三大推理引擎与压测套件：',
+              body: 'vLLM（通用霸主，内置 `vllm bench`）、SGLang（RadixAttention 基数树极致前缀复用，多轮对话/Agent 极猛）、TensorRT-LLM（英伟达官方性能标杆）；搭配阿里 `EvalScope` 或英伟达 `GenAI-Perf` 一键输出标准化 P50/P99 报表。',
+            },
+            {
+              lead: '算子融合进阶阶梯：',
+              body: '入门用 **OpenAI Triton**（30 行类 Python 代码按数据块写 Fused RMSNorm/Softmax，砍掉 60%~75% HBM 读写）；进阶了解 **TileLang**（新兴异构块级算子语言，同时支持 GPU 与国产 NPU）与 **CUTLASS / CuTe**（英伟达官方开源矩阵乘模板库，理解 Tensor Core 硬件分块圣经）。',
+            },
+          ],
+        },
+        {
+          type: 'table',
+          title: '核心对比表 · 新手踩坑 vs 大厂科学实战标准',
+          headers: ['实战维度', '新手常见踩坑做法', '大厂级科学实战标准'],
+          rows: [
+            ['GPU 计时方式', '直接用 Python `time.time()` 包裹推理', '`torch.cuda.Event(enable_timing=True)` + `synchronize()`'],
+            ['冷启动干扰', '把第 1 次请求耗时算进平均成绩', '先空跑 3~5 次 Warmup 预热，正式压测再采样'],
+            ['延迟汇报口径', '只报单一平均延迟（Mean）', '必报 TTFT/TPOT 的 P50/P95/P99 + 帕累托曲线与 Goodput'],
+            ['算子融合实战', '死磕上千行 CUDA C++ 共享内存冲突', '用 Triton / TileLang 写融合算子，进阶读 CUTLASS 模板'],
+          ],
+        },
+        {
+          type: 'callout',
+          variant: 'engineer',
+          title: '高频压测与简历项目配方',
+          copyText: `vllm serve Qwen/Qwen2.5-7B-Instruct --max-model-len 8192\nvllm bench serve --model Qwen/Qwen2.5-7B-Instruct --num-prompts 100 --max-concurrency 16`,
+          content:
+            '1. 启动服务：`vllm serve Qwen/Qwen2.5-7B-Instruct --max-model-len 8192`\n2. 并发压测：`vllm bench serve --model Qwen/Qwen2.5-7B-Instruct --num-prompts 100 --max-concurrency 16`\n3. 镇站文章：同卡对比 vLLM vs SGLang 多轮对话 P99 延迟，再用 AI 带着写 30 行 Triton Fused Softmax 测有效带宽提升！',
+        },
+        {
+          type: 'quiz',
+          question:
+            '思考题：为什么在对比 vLLM 和 SGLang 时，换成“多轮长对话或 Agent 工具调用”场景，前缀缓存（Prefix Caching / RadixAttention）的威力会瞬间爆发？',
+          answer:
+            '多轮对话和 Agent 每次请求都带着极长的公共 System Prompt 与历史对话前缀。RadixAttention 用基数树自动复用已算好的历史 KV Cache，砍掉了绝大部分重复 Prefill 计算，让 TTFT 断崖式下降。',
+        },
+      ],
+    },
+    {
+      id: '5.8',
+      title: '5.8 2026 最前沿论题与新卡点全景（Agentic KV I/O 墙 / AFD / RL Rollout / MXFP4 / NSA）',
+      isCore: true,
+      readTime: '8 分钟',
+      tags: ['核心主线', '2026 前沿', 'Agentic KV', 'AFD', 'RL Rollout', 'MXFP4', 'NSA'],
+      goal: '建立 2025–2026 工业界一线真实系统瓶颈视野，面试时从入门级 KV/PD 一跃升级到 Agentic I/O 墙与 Rollout 长尾攻坚。',
+      blocks: [
+        { type: 'heading', text: '核心直觉' },
+        {
+          type: 'paragraph',
+          text: '基础的“单机防 OOM”和“Prefill vs Decode”已经是 2024 年的入门常识。到了 2026 年的真实大厂一线，随着多轮 Agent、深度思考（Test-Time Compute）、超大规模 MoE 和百万上下文全面落地，系统卡点已经从单卡显存转移到了「外部存储 I/O 墙」「分离架构边界税」「RL 采样长尾」与「4 比特反量化开销」六大新战场！',
+        },
+        { type: 'heading', text: '底层机制拆解' },
+        {
+          type: 'list',
+          ordered: true,
+          items: [
+            {
+              lead: '① KV Cache 全链路演进与「Agentic 存储 I/O 墙」：',
+              body: 'KV 优化已走过 PagedAttention → GQA → MLA → RadixAttention → FP8 KV 量化（默认标配）→ 分布式分级卸载（用 Mooncake / LMCache / NVIDIA NIXL 把冷 KV 卸到 DRAM/SSD 池）。新卡点：多轮 Agent 前缀命中率超 90% 后，从外部 SSD/DRAM 池疯狂往 GPU 拉取历史 KV 的网卡/存储 I/O 带宽成了新瓶颈，顶级 GPU 功耗只吃到 25% 就在干等数据！',
+            },
+            {
+              lead: '② 分离式推理深化（PD 分离 & AFD）的「边界税」：',
+              body: '将算力密集的 FFN/专家与显存密集的 Attention 进一步拆开（AFD）。新卡点：跨机搬运激活值/KV 的边界税（Boundary Tax）加重，且流量剧烈波动时死板硬件配比会导致“P 池挤爆、D 池昂贵显卡闲置吃灰”的算力搁浅（Stranded Capacity）。',
+            },
+            {
+              lead: '③ 推理时扩展与 RL 后训练的「Rollout 长尾卡点」：',
+              body: '在 RLVR / GRPO 等后训练中，70% 以上时间花在 Rollout（模型并发生成海量长思维链）。新卡点：回答长度极度不均（300 字 vs 2 万字）引发严重长尾木桶效应，加上推理引擎与训练引擎频繁倒腾权重气泡，是目前 AI Infra 最值钱的攻坚区。',
+            },
+            {
+              lead: '④ 超大规模 MoE 与机柜级扩展（Scale-Up）：',
+              body: 'NVL72 等机柜级超节点把 72 张卡连成共享内存域跑大规模 EP，并配合 DualPipe 双向流水线重叠。新卡点：All-to-All 通信墙、热门专家负载不均与单卡超 1000W 液冷供电极限。',
+            },
+            {
+              lead: '⑤ 硬件原生 4 比特（MXFP4 / NVFP4）与百万上下文稀疏突围（NSA / 混合架构）：',
+              body: '每 16/32 个数配独立微缩放因子压制离群值，并用原生稀疏注意力（NSA）与线性注意力混合架构突破 O(N²) 魔咒。新卡点：未融合时的反量化指令开销（Dequantization Overhead）与稀疏不规则跳读导致的硬件利用率暴跌（必须靠块级稀疏 Block-Sparse 配合 Triton/TileLang 定制算子）。',
+            },
+          ],
+        },
+        {
+          type: 'table',
+          title: '核心对比表 · 2026 前沿论题与一线真实新卡点',
+          headers: ['2026 前沿论题', '代表技术 / 开源组件', '2026 一线真实新卡点', '破局优化方向'],
+          rows: [
+            ['Agentic KV 池化', 'FP8 KV、Mooncake、LMCache、NIXL', '外部存储 I/O 墙（GPU 干等拉取历史 KV）', '分层异步预取、高带宽 RDMA 存储直连'],
+            ['PD 分离 / AFD', 'Mooncake、Dynamo、分离式推理', '跨机边界税 & 流量波动引发算力搁浅', '软件动态切换节点角色，按需弹性重配'],
+            ['Test-Time & RL 后训练', 'RLVR、GRPO、Long CoT、verl', 'Rollout 70% 耗时 + 长尾木桶 + 权重同步', '异步解耦 Rollout、分片权重极速广播'],
+            ['大规模 MoE 机柜扩展', 'Large-Scale EP、NVL72、DualPipe', 'All-to-All 通信墙 + 专家热点 + 液冷墙', '机柜内 Scale-Up 锁域 + 动态冗余专家副本'],
+            ['超低比特 & 百万上下文', 'MXFP4/NVFP4、NSA、Mamba 混合', '反量化指令开销 + 稀疏不规则访存掉速', '硬件原生 FP4 融合 + 块级硬件感知稀疏算子'],
+          ],
+        },
+        {
+          type: 'callout',
+          variant: 'engineer',
+          title: '面试降维打击话术',
+          content:
+            '当面试官问“你平时怎么看 KV Cache 或大模型推理瓶颈？”时，先答基础的「PagedAttention + Prefill/Decode 冲突」，再顺手补一句：“而在 2026 年多轮 Agent 和 RL 后训练场景下，瓶颈已经进一步漂移到了外部 KV 池化的 Storage I/O 墙，以及 RL Rollout 的长尾木桶效应”——瞬间展现远超本科生的工业界一线视野！',
+        },
+        {
+          type: 'quiz',
+          question:
+            '思考题：为什么原生稀疏注意力（NSA）虽然在数学上砍掉了 80% 的计算量，但如果直接按“细粒度随机稀疏”写代码，在 GPU 上反而可能比稠密矩阵跑得更慢？',
+          answer:
+            'GPU 的 SIMT 线程束和 Tensor Core 矩阵阵列极度依赖“连续整齐的内存合并访问（Coalesced Memory Access）”。细粒度随机稀疏会导致严重的跳跃不规则访存（Irregular Memory Access）和分支发散，Cache 疯狂 Miss；必须设计成硬件友好的块级稀疏（Block-Sparse，比如以 64×64 为最小跳过单位）并配合 Triton/TileLang 定制算子，才能把理论加速变成真实加速。',
+        },
+      ],
+    },
   ],
 };

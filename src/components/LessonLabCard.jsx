@@ -52,6 +52,11 @@ function LessonLabCardInner({ cfg, onOpenLabWithPreset }) {
   const [sloBatch, setSloBatch] = useState(cfg.defaultPreset.batch ?? 32);
   const [debugScene, setDebugScene] = useState(cfg.defaultPreset.scene ?? 'cuda_graph');
   const [debugFixed, setDebugFixed] = useState(false);
+  const [miniNpuSteps, setMiniNpuSteps] = useState(1);
+  const [miniStorage, setMiniStorage] = useState('3d_ic');
+  const [miniOsFixed, setMiniOsFixed] = useState(true);
+  const [miniDvfsV, setMiniDvfsV] = useState(1.0);
+  const [miniAgenticOpt, setMiniAgenticOpt] = useState(true);
 
   // Build dynamic outgoing preset reflecting user's mini-interaction
   const buildOutgoingPreset = () => {
@@ -96,6 +101,23 @@ function LessonLabCardInner({ cfg, onOpenLabWithPreset }) {
         return { batch: sloBatch, ctx: 8 };
       case 'nsight_debug':
         return { scene: debugScene, fixed: debugFixed };
+      case 'npu_vs_gpu':
+        return {
+          fixFallback: miniNpuSteps >= 1,
+          graphCapture: miniNpuSteps >= 2,
+          doubleBuffer: miniNpuSteps >= 3,
+          quantW4: miniNpuSteps >= 4,
+        };
+      case 'storage_3d_cim':
+        return { mode: 'arch', subPreset: 'storage_3d_cim', storageMode: miniStorage };
+      case 'os_dma_numa':
+        return { mode: 'os_dvfs', subPreset: 'os_dma_numa', pinned: miniOsFixed, numa: miniOsFixed };
+      case 'dvfs_thermal':
+        return { mode: 'os_dvfs', subPreset: 'dvfs_thermal', voltage: miniDvfsV, freq: 1.9 };
+      case 'agentic_kv_io':
+        return { ctx: 100, batch: 8, bw: 2400, attn: 'gqa', agentic: true };
+      case 'goodput_sweep':
+        return { ctx: 8, batch: sloBatch, bw: 2000, attn: 'gqa' };
       default:
         return cfg.defaultPreset;
     }
@@ -586,6 +608,147 @@ function LessonLabCardInner({ cfg, onOpenLabWithPreset }) {
             </div>
           </div>
         );
+
+      case 'gpu_golden_model':
+        return (
+          <div className="flex flex-wrap items-center justify-between gap-3 font-mono text-xs">
+            <span className="text-slate-600 dark:text-slate-300">
+              Golden Model 预设：989 TF · 64MB SRAM · 3.35 TB/s HBM
+            </span>
+            <span className="text-amber-500 font-bold">
+              HBM 搬运等待占 58% → 属 Memory-Bound，扩带宽收益最高！
+            </span>
+          </div>
+        );
+
+      case 'storage_3d_cim': {
+        const sMap = {
+          '25d_hbm': '搬运能耗 58% · 3.35 TB/s',
+          '3d_ic': '搬运能耗 26% · 6.8 TB/s (警惕热点)',
+          cim: '搬运能耗 8% · 12.0 TB/s (极高能效)',
+        };
+        return (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-1.5">
+              <PillButton active={miniStorage === '25d_hbm'} onClick={() => setMiniStorage('25d_hbm')}>
+                2.5D HBM
+              </PillButton>
+              <PillButton active={miniStorage === '3d_ic'} onClick={() => setMiniStorage('3d_ic')}>
+                3D 垂直堆叠
+              </PillButton>
+              <PillButton active={miniStorage === 'cim'} onClick={() => setMiniStorage('cim')}>
+                存算一体 CIM
+              </PillButton>
+            </div>
+            <span className="font-mono text-xs font-bold text-emerald-500">
+              {sMap[miniStorage]}
+            </span>
+          </div>
+        );
+      }
+
+      case 'op_breakdown':
+        return (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-[11px] text-center">
+            <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-300">
+              SiLU · AI=1.0
+            </div>
+            <div className="p-2 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-300">
+              RMSNorm · AI=1.8
+            </div>
+            <div className="p-2 rounded-lg bg-sky-500/10 border border-sky-500/30 text-sky-600 dark:text-sky-300">
+              FlashAttn · AI=96
+            </div>
+            <div className="p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-300">
+              GEMM · AI=512
+            </div>
+          </div>
+        );
+
+      case 'npu_vs_gpu': {
+        const tpsList = [28, 59, 91, 134, 235];
+        return (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-1.5">
+              {[0, 1, 2, 3, 4].map((lvl) => (
+                <PillButton key={lvl} active={miniNpuSteps === lvl} onClick={() => setMiniNpuSteps(lvl)}>
+                  {lvl === 0 ? '未优化' : `开启 ${lvl} 项优化`}
+                </PillButton>
+              ))}
+            </div>
+            <span className="font-mono text-xs font-bold text-emerald-500">
+              自研 NPU 吞吐：{tpsList[miniNpuSteps]} tok/s（竞品 GPU 112 tok/s）
+            </span>
+          </div>
+        );
+      }
+
+      case 'os_dma_numa':
+        return (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <PillButton active={miniOsFixed} onClick={() => setMiniOsFixed((v) => !v)}>
+              {miniOsFixed ? '✅ 已开启 Pinned + NUMA 绑核' : '⚠️ 未优化（跨槽绕路）'}
+            </PillButton>
+            <span className={`font-mono text-xs font-bold ${miniOsFixed ? 'text-emerald-500' : 'text-rose-500'}`}>
+              {miniOsFixed ? 'H2D 52 GB/s · GPU 气泡 5%' : 'H2D 11 GB/s · GPU 气泡 42%!'}
+            </span>
+          </div>
+        );
+
+      case 'goodput_sweep': {
+        const movedGB = 16 + sloBatch * 1.0;
+        const tpot = (movedGB / 2000) * 1000;
+        return (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span>并发压测扫描：Batch = {sloBatch}</span>
+              <span className={`font-mono font-bold ${tpot > 50 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                TPOT {tpot.toFixed(1)} ms {tpot > 50 ? '(超 SLO 红线)' : '(达标 Goodput)'}
+              </span>
+            </div>
+            <input
+              type="range"
+              min={1}
+              max={64}
+              value={sloBatch}
+              onChange={(e) => setSloBatch(Number(e.target.value))}
+              className="w-full silicon-slider bg-slate-200 dark:bg-slate-800"
+            />
+          </div>
+        );
+      }
+
+      case 'agentic_kv_io':
+        return (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <PillButton active={miniAgenticOpt} onClick={() => setMiniAgenticOpt((v) => !v)}>
+              {miniAgenticOpt ? '✅ 已开 FP8 KV + 异步预取' : '⚠️ 未优化外部 KV 池拉取'}
+            </PillButton>
+            <span className={`font-mono text-xs font-bold ${miniAgenticOpt ? 'text-emerald-500' : 'text-amber-500'}`}>
+              {miniAgenticOpt ? 'I/O 占比 34% · TTFT 210ms' : 'Storage I/O 占比 70% · GPU 功耗仅 25%!'}
+            </span>
+          </div>
+        );
+
+      case 'dvfs_thermal': {
+        const temp = 32 + 240 * (miniDvfsV / 0.95) ** 2 * (1.9 / 1.5) * 0.115 + 4;
+        const hot = temp > 85;
+        return (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex gap-1.5">
+              <PillButton active={miniDvfsV === 0.85} onClick={() => setMiniDvfsV(0.85)}>
+                降压 0.85V (省电)
+              </PillButton>
+              <PillButton active={miniDvfsV === 1.05} onClick={() => setMiniDvfsV(1.05)}>
+                高压 1.05V (冲频)
+              </PillButton>
+            </div>
+            <span className={`font-mono text-xs font-bold ${hot ? 'text-rose-500' : 'text-emerald-500'}`}>
+              结温 {temp.toFixed(0)}℃ {hot ? '(🚨 触发 85℃ 热节流降频!)' : '(安全满频)'}
+            </span>
+          </div>
+        );
+      }
 
       default:
         return null;

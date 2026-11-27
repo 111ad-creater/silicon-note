@@ -305,5 +305,114 @@ export const module8 = {
         },
       ],
     },
+    {
+      id: '8.6',
+      title: '8.6 多卡真听诊器（DCGM / nccl-tests / RDMA）、硅后 DVFS 与招聘避坑雷达',
+      isCore: true,
+      readTime: '8 分钟',
+      tags: ['核心主线', 'DCGM', 'nccl-tests', 'DVFS 热节流', '硅后验证', 'JD 避坑'],
+      goal: '用 DCGM 揭穿假 100% Util 骗局，用 nccl-tests 定界多卡硬件裸带宽，算清 DVFS 功耗与热节流，并练就 10 秒识别 JD 陷阱的雷达。',
+      blocks: [
+        { type: 'heading', text: '核心直觉' },
+        {
+          type: 'paragraph',
+          text: '新手只看 `nvidia-smi` 的 `GPU-Util: 100%` 就以为显卡吃满了，其实那是业内最大视觉骗局！真正的高手会用 DCGM 看穿假满载、用 `nccl-tests` / `ib_write_bw` 测出多卡裸带宽、用 DVFS 公式一秒破案热节流降频；同时还能在招聘软件里 10 秒识破“硅前 SV/UVM”“服务器画主板”“家电节能”等文字游戏陷阱！',
+        },
+        { type: 'heading', text: '底层机制拆解' },
+        {
+          type: 'list',
+          ordered: true,
+          items: [
+            {
+              lead: '揭穿假 100% Util 骗局：',
+              body: '`GPU-Util` 只代表采样窗口内至少有 1 个 Kernel 活跃的时间占比，哪怕 99% 核心都在摸鱼等显存也会显示 100%！必须结合实时功耗（是否顶到 TDP）与 `dcgmi dmon`（看真实 SM 活跃度、Tensor Core 占比和 HBM 带宽利用率）。',
+            },
+            {
+              lead: '多卡高速互连与裸带宽测速（RDMA + `nccl-tests`）：',
+              body: 'GPUDirect RDMA 绕过 OS 内核与 CPU 内存拷贝（Zero-Copy & Kernel-Bypass），网卡直接读写远端 GPU 显存。排查集群慢时，先跑 `nccl-tests`（如 `all_reduce_perf` / `alltoall_perf`）和 `ib_write_bw` 测硬件裸带宽，一秒分清是“网线/网卡有问题”还是“业务代码写慢了”！',
+            },
+            {
+              lead: '硅后 Bring-up 与 DVFS 热节流：',
+              body: '芯片动态功耗 P = α·C·V²·f（降压 10% + 降频 10% 可省电约 27%）+ 随温度指数暴涨的静态漏电。温度破红线（如 85℃）触发 Thermal Throttling 降频时，用 `nvidia-smi -q -d PERFORMANCE` 一秒破案；同时掌握「硅前 DV（SV/UVM 避坑）vs 硅后 Bring-up / GPU 架构建模 / NPU 高性能计算 / AI Infra（目标冲刺）」的招聘扫雷法则。',
+            },
+          ],
+        },
+        {
+          type: 'table',
+          title: '核心对比表 · 高级排障命令与选岗扫雷清单',
+          headers: ['高级排障 / 选岗维度', '核心命令 / 红旗避坑词', '一眼破案结论'],
+          rows: [
+            ['假满载与降频破案', '`nvidia-smi dmon -s pucm` | `nvidia-smi -q -d PERFORMANCE`', 'Util=99% 但功耗远低 TDP = 假满载；Thermal Slowdown Active = 热节流降频'],
+            ['多卡裸带宽与真监控', '`nccl-tests (all_reduce_perf)` | `ib_write_bw` | `dcgmi dmon`', '先测硬件裸带宽定界“网慢还是代码慢”；DCGM 直出真实 Tensor Core 占比'],
+            ['梦中情岗精准搜索词', 'GPU架构建模 / NPU高性能计算 / AI Infra / AI芯片性能分析 / 硅后验证', '0 Verilog/模拟电路，吃满 IC 背景 + 排障直觉，直击算力平权'],
+            ['招聘文字陷阱黑名单', 'SV+UVM+VCS/Verdi；硬件架构师(PCB Layout)；物流BRD；空调冰箱节能', '遇到这 4 类红旗词直接划走，绝不踩硅前验证或非芯片岗的坑'],
+          ],
+        },
+        {
+          type: 'jd_radar',
+          title: 'JD 关键词避坑雷达（6 题互动判别小测验）',
+          subtitle: '遇到下面 6 条真实招聘 JD 关键词描述，判断该「冲 ✅」还是「逃 ❌」（点击即时判分）',
+          items: [
+            {
+              id: 'jd-1',
+              role: 'GPU 架构师 / 架构建模工程师',
+              snippet: '熟悉 C++/SystemC/Python，负责 AI 负载建模（Workload Characterization）、性能瓶颈定位与软硬件接口抽象设计，无需编写 RTL。',
+              verdict: 'go',
+              reason: '冲 ✅！纯正 GPU 架构建模与系统性能方向，完美发挥 IC 背景 + AI 系统直觉，不碰 Verilog。',
+            },
+            {
+              id: 'jd-2',
+              role: 'AI 芯片数字验证工程师（Pre-Silicon DV）',
+              snippet: '精通 SystemVerilog 与 UVM 验证方法学，熟练使用 VCS、Verdi 进行 RTL 波形调试与覆盖率收敛。',
+              verdict: 'run',
+              reason: '逃 ❌！这是典型的“硅前数字验证（Pre-Silicon DV）”岗位，天天写 SV/UVM 看 RTL 波形，偏离 AI 系统与性能分析主线。',
+            },
+            {
+              id: 'jd-3',
+              role: 'NPU 高性能计算 / 推理系统优化工程师',
+              snippet: '负责将 vLLM / SGLang / ONNX 大模型适配至自研 NPU，使用 Profiler 排查算子回退、驱动下发瓶颈并做竞品对标。',
+              verdict: 'go',
+              reason: '冲 ✅！国产 NPU 软件栈与大模型推理优化的核心岗位，4.6/5.7 课技能直接对口。',
+            },
+            {
+              id: 'jd-4',
+              role: '资深硬件系统架构师（Server Hardware）',
+              snippet: '负责 AI 服务器整机供电方案、原理图设计与高速 PCB Layout 评审，熟悉电源芯片选型与信号完整性。',
+              verdict: 'run',
+              reason: '逃 ❌！名字叫“硬件架构师”，实际是服务器主板/PCB 画板子岗位，不是芯片架构或算力系统。',
+            },
+            {
+              id: 'jd-5',
+              role: 'AI Infra / 集群性能分析工程师',
+              snippet: '精通 Nsight Systems / DCGM / nccl-tests 集群性能剖析，优化大规模 MoE 推理吞吐、Goodput 与 P99 长尾延迟。',
+              verdict: 'go',
+              reason: '冲 ✅！AI Infra 黄金赛道，直接用 Roofline、Nsight、nccl-tests 与算力经济学撬动业务降本。',
+            },
+            {
+              id: 'jd-6',
+              role: 'AI 能耗算法工程师（某传统家电大厂）',
+              snippet: '基于强化学习优化商用空调压缩机与冷库冰箱的群控节能调度，熟悉 BRD 需求文档撰写与家电嵌入式固件联调。',
+              verdict: 'run',
+              reason: '逃 ❌！挂着“AI 能耗优化”名头，实际是空调冰箱控温或传统业务 BRD，与 AI 芯片/算力系统毫无关系。',
+            },
+          ],
+        },
+        {
+          type: 'callout',
+          variant: 'engineer',
+          title: '面试必杀问答储备',
+          copyText: `nvidia-smi dmon -s pucm\nnvidia-smi -q -d PERFORMANCE | grep -A 10 "Clocks Throttle Reasons"`,
+          content:
+            '问：「`nvidia-smi` 显示 GPU 利用率 99%，是不是显卡已经跑满了？」\n答：「不是！那只是时间窗口内有 Kernel 活跃的占比。判断真满载必须看三合一：实时功耗是否接近 TDP、用 DCGM 看 Tensor Core / DRAM 真实占比，以及用 Nsight Systems (`nsys`) 看时间轴里有没有空白气泡。」',
+        },
+        {
+          type: 'quiz',
+          question:
+            '思考题：为什么排查多机多卡训练变慢时，资深 AI Infra 工程师的第一反应不是去翻几万行 PyTorch 业务代码，而是先跑一遍 `nccl-tests` 和 `ib_write_bw`？',
+          answer:
+            '这是经典的“二分法定界排障思维”：花 30 秒跑一次官方标准通信基准 `nccl-tests`，如果裸机 AllReduce 带宽都只有理论值的 20%，说明是机房交换机、RDMA 驱动或网口降速的底层硬件/网络故障，翻一天业务代码也白搭；如果裸带宽满血达标，就立刻把嫌疑锁定在业务代码或并行切分策略上。',
+        },
+      ],
+    },
   ],
 };

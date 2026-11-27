@@ -1,4 +1,4 @@
-// Catalog of all 7 Interactive Labs and lesson-to-lab mapping configurations
+// Catalog of all 9 Interactive Labs and lesson-to-lab mapping configurations
 
 export const LAB_TABS = [
   {
@@ -7,8 +7,8 @@ export const LAB_TABS = [
     title: 'KV Cache 与显存带宽',
     shortTitle: 'KV 显存带宽',
     moduleTag: '模块 5 · 8',
-    desc: '上下文、并发与 MHA/GQA/MLA 对 80GB HBM 容量墙和带宽墙的冲击',
-    linkedLessons: ['5.1', '5.3', '8.1'],
+    desc: '上下文、并发与 MHA/GQA/MLA 及 2026 Agentic KV I/O 墙对 80GB HBM 容量与带宽的冲击',
+    linkedLessons: ['5.1', '5.3', '5.7', '5.8', '8.1'],
   },
   {
     id: 'lab2',
@@ -34,8 +34,8 @@ export const LAB_TABS = [
     title: 'Roofline 屋顶线诊断仪',
     shortTitle: 'Roofline 图',
     moduleTag: '模块 2 · 3 · 5',
-    desc: '双对数坐标心电图：看 Batch、精度与 Prefill/Decode 如何决定瓶颈归属',
-    linkedLessons: ['2.1', '2.2', '3.4', '3.5', '5.1'],
+    desc: '双对数坐标心电图：看 Batch、精度、算子拆解与 Prefill/Decode 如何决定瓶颈归属',
+    linkedLessons: ['2.1', '2.2', '3.4', '3.5', '3.6', '5.1'],
   },
   {
     id: 'lab5',
@@ -64,6 +64,24 @@ export const LAB_TABS = [
     desc: '四大真实大厂性能故障病例：一键修复同步锁、CUDA Graph、Overlap 与跨机 TP',
     linkedLessons: ['7.3', '7.4', '8.2', '8.3'],
   },
+  {
+    id: 'lab8',
+    number: 'Lab 8',
+    title: '自研 NPU 软件栈适配与竞品对标沙盒',
+    shortTitle: 'NPU 软件栈对标',
+    moduleTag: '模块 4 · 5',
+    desc: '消除算子回退、图下沉、SRAM 双缓冲与 W4A16 量化，一步步追平并反超竞品 GPU',
+    linkedLessons: ['4.6', '5.7'],
+  },
+  {
+    id: 'lab9',
+    number: 'Lab 9',
+    title: 'GPU 架构建模 PPA 与 OS/DVFS 双模台',
+    shortTitle: '架构建模/DVFS',
+    moduleTag: '模块 1·2·4·8',
+    desc: 'Mode A 探索 Golden Model PPA 与 3D 存储；Mode B 排障 Pinned/NUMA 搬运与 DVFS 热节流',
+    linkedLessons: ['1.7', '2.5', '4.7', '8.6'],
+  },
 ];
 
 const LAB_ALIAS_MAP = {
@@ -88,6 +106,13 @@ const LAB_ALIAS_MAP = {
   '7': 'lab7',
   lab7: 'lab7',
   nsight: 'lab7',
+  '8': 'lab8',
+  lab8: 'lab8',
+  npu: 'lab8',
+  '9': 'lab9',
+  lab9: 'lab9',
+  arch: 'lab9',
+  dvfs: 'lab9',
 };
 
 export function normalizeLabId(raw) {
@@ -350,5 +375,77 @@ export const LESSON_LAB_WIDGETS = {
     desc: '实战抓犯人：开启 CUDA Graph 将 20 根零碎小 Kernel 合并为紧凑长条，CPU 发射耗时直接暴降 85%。',
     widgetType: 'nsight_debug',
     defaultPreset: { scene: 'cuda_graph' },
+  },
+  '1.7': {
+    lessonId: '1.7',
+    labId: 'lab9',
+    labLabel: 'Lab 9 · GPU 架构建模双模台 (Mode A)',
+    title: '运行轻量 Golden Model 观察算子热路径与 PPA 权衡',
+    desc: '拖动「Tensor Core 算力」「片上 SRAM 容量」「HBM 带宽」，实时查看 Decode 瓶颈漂移与芯片面积/功耗变化。',
+    widgetType: 'gpu_golden_model',
+    defaultPreset: { mode: 'arch', subPreset: 'gpu_golden_model' },
+  },
+  '2.5': {
+    lessonId: '2.5',
+    labId: 'lab9',
+    labLabel: 'Lab 9 · 3D 存储对比预设 (Mode A)',
+    title: '对比 2.5D HBM vs 3D 垂直堆叠 vs 存算一体 CIM',
+    desc: '一键对比三种存储路线的数据搬运能耗占比、端到端带宽与夹心层局部热点风险。',
+    widgetType: 'storage_3d_cim',
+    defaultPreset: { mode: 'arch', subPreset: 'storage_3d_cim' },
+  },
+  '3.6': {
+    lessonId: '3.6',
+    labId: 'lab4',
+    labLabel: 'Lab 4 · Roofline 算子拆解模式',
+    title: '查看 GEMM / FlashAttention / RMSNorm / SiLU 独立落点',
+    desc: '切换观察四大算子在 H100 Roofline 上的真实落点，一眼看懂为什么算子融合能把红点向右推进。',
+    widgetType: 'op_breakdown',
+    defaultPreset: { chip: 'H100', stage: 'prefill', opBreakdown: true },
+  },
+  '4.6': {
+    lessonId: '4.6',
+    labId: 'lab8',
+    labLabel: 'Lab 8 · 自研 NPU 适配与竞品对标',
+    title: '四级调优让自研 NPU 从 1/4 速度追平并反超能效比',
+    desc: '依次开启消除 CPU 回退、图下沉、SRAM 双缓冲与 W4A16 量化，实时观测流水线绿灯与竞品柱状对比。',
+    widgetType: 'npu_vs_gpu',
+    defaultPreset: { fixFallback: false, graphCapture: false, doubleBuffer: false, quantW4: false },
+  },
+  '4.7': {
+    lessonId: '4.7',
+    labId: 'lab9',
+    labLabel: 'Lab 9 · OS 搬运通道排障 (Mode B)',
+    title: '开关 Pinned Memory 锁页内存与 NUMA 就近绑核',
+    desc: '观察主机到显卡的数据管道从跨插槽红色绕路变成绿色直达、GPU 饥饿气泡瞬间闭合。',
+    widgetType: 'os_dma_numa',
+    defaultPreset: { mode: 'os_dvfs', subPreset: 'os_dma_numa', pinned: true, numa: true },
+  },
+  '5.7': {
+    lessonId: '5.7',
+    labId: 'lab1',
+    labLabel: 'Lab 1 · 高并发 Goodput 拐点预设',
+    title: '拉高并发观察总吞吐攀升与 50ms SLO 帕累托拐点',
+    desc: '逐步拉高并发用户数（1 → 8 → 32 → 64），定位总吞吐飙升但单用户 TPOT 即将撞破 50ms 红线的甜点区。',
+    widgetType: 'goodput_sweep',
+    defaultPreset: { ctx: 8, batch: 32, bw: 2000, attn: 'gqa' },
+  },
+  '5.8': {
+    lessonId: '5.8',
+    labId: 'lab1',
+    labLabel: 'Lab 1 · 2026 Agentic KV I/O 墙预设',
+    title: '对比 100K 多轮 Agent 历史前缀全塞显存 vs 池化卸载',
+    desc: '一键开启「FP8 KV + 异步预取」，看外部 Storage I/O 墙耗时从 70% 骤降、TTFT 大幅回落。',
+    widgetType: 'agentic_kv_io',
+    defaultPreset: { ctx: 100, batch: 8, bw: 2400, attn: 'gqa', agentic: true },
+  },
+  '8.6': {
+    lessonId: '8.6',
+    labId: 'lab9',
+    labLabel: 'Lab 9 · 硅后 DVFS 热节流排障 (Mode B)',
+    title: '调节供电电压 V 与频率 f 观察 85℃ 热节流降频',
+    desc: '实时计算 P = αCV²f 动态功耗与结温，体验结温破 85℃ 触发 Thermal Throttling 降频保命。',
+    widgetType: 'dvfs_thermal',
+    defaultPreset: { mode: 'os_dvfs', subPreset: 'dvfs_thermal', voltage: 1.05, freq: 1.9 },
   },
 };

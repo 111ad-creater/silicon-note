@@ -492,4 +492,138 @@ export const exercisesPart1 = {
         '因为国产芯片最缺的恰恰不是“纯画电路的人”，而是“既懂芯片硬件瓶颈、又懂 PyTorch/vLLM 推理系统、能拿着剖析工具把软硬件卡点揪出来优化”的跨界性能工程师。',
     },
   ],
+  '1.7': [
+    {
+      index: 1,
+      tag: '概念快测（单选）',
+      kind: 'choice',
+      question:
+        '在 GPU 流片前的架构探索阶段，架构师需要快速对比 20 种不同的片上 SRAM 大小与 HBM 带宽组合，同时兼顾仿真速度与瓶颈定位精度。最适合采用的建模层级是？',
+      options: [
+        { key: 'A', text: '晶体管级 SPICE 仿真' },
+        { key: 'B', text: '门级网表后仿' },
+        { key: 'C', text: '事务级性能建模（TLM / SystemC）' },
+        { key: 'D', text: '等流片回来再测' },
+      ],
+      correctKey: 'C',
+      answer:
+        '选 C。SPICE 和门级后仿跑一个算子要几天，而事务级建模（TLM / SystemC）能在分钟级定量对比不同架构方案的性能与瓶颈。',
+    },
+    {
+      index: 2,
+      tag: '纸面算账（架构取舍）',
+      kind: 'open',
+      question:
+        '你的 Golden Model 模拟显示：某 AI 芯片在跑大模型 Decode 阶段时，算子耗时 90% 卡在 HBM 带宽上，Tensor Core 利用率只有 12%。此时若把计算阵列面积翻倍（算力 2x），端到端吐字速度会翻倍吗？',
+      answer:
+        '几乎零提升！当前处于严重 Memory-bound（访存瓶颈），算力早已过剩 88%；应把宝贵的芯片面积预算拿去增大片上 SRAM 或升级 HBM 带宽。',
+    },
+  ],
+  '2.5': [
+    {
+      index: 1,
+      tag: '概念快测（单选）',
+      kind: 'choice',
+      question:
+        '在 3D IC 垂直堆叠 AI 存储芯片中，用来在上下多层芯片之间打通垂直高速数据通道的关键微纳结构简称是？',
+      options: [
+        { key: 'A', text: 'PCIe' },
+        { key: 'B', text: 'TSV（硅通孔）' },
+        { key: 'C', text: 'UVM' },
+        { key: 'D', text: 'ALU' },
+      ],
+      correctKey: 'B',
+      answer:
+        '选 B（TSV, Through-Silicon Via）。它就像穿过芯片楼板的垂直高速电梯，大幅缩短互连距离并提升带宽密度。',
+    },
+    {
+      index: 2,
+      tag: '视野拓展（联合仿真思维）',
+      kind: 'open',
+      question:
+        '某存算一体芯片在跑 7B 模型时吞吐提升了 3 倍、功耗降了 60%，但模拟计算引入了轻微噪声。作为联合仿真工程师，你必须把哪两类指标画在同一张权衡曲线上？',
+      answer:
+        '必须同时汇报「硬件效率指标（吞吐 / 能效比 Tokens/J）」与「算法精度指标（Perplexity 困惑度或基准准确率下降幅度）」。脱离精度空谈提速没有工业价值。',
+    },
+  ],
+  '3.6': [
+    {
+      index: 1,
+      tag: '概念快测（单选）',
+      kind: 'choice',
+      question:
+        '你在 PyTorch Profiler 报告中发现 RMSNorm 和残差加法的计算量（FLOPs）不到全模型 0.5%，却占了 18% 的运行时间。最核心的原因是？',
+      options: [
+        { key: 'A', text: 'GPU 不会算加法' },
+        { key: 'B', text: '它们算术强度极低且未融合，耗时全浪费在反复读写 HBM 与发射小 Kernel 上' },
+        { key: 'C', text: '显存容量不足' },
+        { key: 'D', text: 'CPU 频率太低' },
+      ],
+      correctKey: 'B',
+      answer:
+        '选 B。逐元素与归一化算子计算量极小但访存占比极高，通过算子融合把中间结果留在片上寄存器/SRAM 里即可大幅提速。',
+    },
+    {
+      index: 2,
+      tag: '纸面算账（算子访存）',
+      kind: 'open',
+      question:
+        '对一个包含 N = 1,000,000 个 FP16（2 字节）元素的向量做逐元素激活 `y = SiLU(x)`（约 4 次浮点运算/元素）。总访存量是多少字节？算术强度（FLOPs/Byte）是多少？',
+      answer:
+        '读入 2MB + 写出 2MB = 4 MB（4×10^6 Bytes）；计算量 = 4×10^6 FLOPs；算术强度 AI = 1.0 FLOP/Byte，远低于 H100 约 295 的拐点，被显存带宽死死卡住！',
+    },
+  ],
+  '4.6': [
+    {
+      index: 1,
+      tag: '概念快测（单选）',
+      kind: 'choice',
+      question:
+        '将开源大模型部署到自研 NPU 时，矩阵乘法很快，但端到端吐字比竞品 GPU 慢 4 倍，且服务器 CPU 占用率飙升、PCIe 拷贝频繁。最可能发生了？',
+      options: [
+        { key: 'A', text: 'NPU 算力坏了' },
+        { key: 'B', text: '发生了“算子回退（Operator Fallback）”，有不支持的小算子悄悄退回 CPU 计算并来回拷贝' },
+        { key: 'C', text: '显存太大' },
+        { key: 'D', text: '权重下载错了' },
+      ],
+      correctKey: 'B',
+      answer:
+        '选 B。只要网络里夹着 1 个不支持的算子，每层都要把数据从 NPU 拷到 CPU 算完再拷回去，瞬间毁掉整条流水线。',
+    },
+    {
+      index: 2,
+      tag: '工程排障（竞品分析）',
+      kind: 'open',
+      question:
+        '自研 NPU 与竞品 GPU 的 HBM 带宽完全相同，但跑 7B 模型 Batch=1 Decode 时吞吐只有竞品的一半。应优先怀疑“算力不够”还是“驱动下发开销 / MBU 没吃满”？为什么？',
+      answer:
+        '优先怀疑「驱动下发开销或 MBU 没吃满」！Batch=1 Decode 是访存瓶颈，两家带宽相同则理论天花板相同；速度只有一半说明驱动发射气泡大（没开图下沉）或访存未对齐导致带宽利用率低。',
+    },
+  ],
+  '4.7': [
+    {
+      index: 1,
+      tag: '概念快测（C++ 缓存直觉）',
+      kind: 'choice',
+      question:
+        '在 C/C++ 中有一个巨大二维数组 `A[4096][4096]`（按行优先存储）。下面哪种遍历求和方法快得多？',
+      options: [
+        { key: 'A', text: '外层行 `i`、内层列 `j` 依次访问 `A[i][j]`' },
+        { key: 'B', text: '外层列 `j`、内层行 `i` 跳跃访问 `A[i][j]`' },
+        { key: 'C', text: '速度完全一样' },
+      ],
+      correctKey: 'A',
+      answer:
+        '选 A！A 沿物理连续内存顺序读取，每次加载一条 Cache Line 顺手命中后面十几个元素；B 每次跳跃 16KB 疯狂触发 Cache Miss，实测慢 5~10 倍。',
+    },
+    {
+      index: 2,
+      tag: '排障实战（工具选型）',
+      kind: 'open',
+      question:
+        '你运行推理服务时发现 GPU 利用率只有 20%，`htop` 显示主 Python 进程占满了 100% 单核 CPU，但你不知道卡在分词、HTTP 序列化还是调度循环里。应该立刻用哪个工具无侵入定位？',
+      answer:
+        '立刻用 `py-spy top --pid <PID>`（或 `py-spy record -o flame.svg --pid <PID>` 生成火焰图），无需重启或改代码就能 1 秒看到最耗时的 Python 函数调用栈！',
+    },
+  ],
 };

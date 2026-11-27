@@ -23,6 +23,10 @@ import {
   Sparkles,
   CheckSquare,
   Square,
+  Search,
+  Copy,
+  Bot,
+  Stethoscope,
 } from 'lucide-react';
 import { BENCHMARK_POSTS } from '../data/benchmarks';
 import { CURRICULUM_STAGES } from '../data/curriculum';
@@ -30,6 +34,8 @@ import {
   TRAINING_TASKS,
   BENCHMARK_REPORT_TEMPLATE,
   CHEATSHEET_CARDS,
+  TROUBLESHOOTING_SCENARIOS,
+  SOFTWARE_TOOL_CATEGORIES,
 } from '../data/trainingCamp';
 import CodeBlock, { copyTextToClipboard } from '../components/CodeBlock';
 
@@ -124,6 +130,35 @@ export default function BenchmarksPage({ onOpenLesson }) {
   // Report Template Modal & Copy feedback state
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
   const [templateCopied, setTemplateCopied] = useState(false);
+
+  // Tab 3 interactive states: 6 scenario answers + tool category filter + copy feedback
+  const [scenarioAnswers, setScenarioAnswers] = useState({});
+  const [copiedId, setCopiedId] = useState(null);
+  const [toolCatFilter, setToolCatFilter] = useState('全部');
+  const [toolSearch, setToolSearch] = useState('');
+
+  const handleQuickCopy = async (id, text) => {
+    const ok = await copyTextToClipboard(text);
+    if (ok) {
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    }
+  };
+
+  const filteredTools = useMemo(() => {
+    const q = toolSearch.trim().toLowerCase();
+    return SOFTWARE_TOOL_CATEGORIES.filter((t) => {
+      const catOk = toolCatFilter === '全部' || t.id === toolCatFilter;
+      if (!catOk) return false;
+      if (!q) return true;
+      return (
+        t.category.toLowerCase().includes(q) ||
+        t.tools.toLowerCase().includes(q) ||
+        t.purpose.toLowerCase().includes(q) ||
+        t.command.toLowerCase().includes(q)
+      );
+    });
+  }, [toolCatFilter, toolSearch]);
 
   // Persistent Checklist state across the 6 training tasks
   const [checkedItems, setCheckedItems] = useState(() => {
@@ -1016,22 +1051,286 @@ export default function BenchmarksPage({ onOpenLesson }) {
 
       {/* ==================== TAB 3: 性能工程师排障速查手册 ==================== */}
       {activeTab === 'cheatsheet' && (
-        <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
-            <div className="space-y-1.5">
-              <div className="inline-flex items-center gap-2 text-xs font-mono text-emerald-600 dark:text-emerald-400">
-                <Wrench className="w-4 h-4" />
-                <span>PERFORMANCE ENGINEER CHEATSHEET · 排障速查卡片墙</span>
+        <div className="space-y-10">
+          {/* Upper Section: 6 Real Troubleshooting Scenarios */}
+          <div className="space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+              <div className="space-y-1.5">
+                <div className="inline-flex items-center gap-2 text-xs font-mono text-sky-600 dark:text-sky-400">
+                  <Stethoscope className="w-4 h-4" />
+                  <span>TROUBLESHOOTING LABS · 6 场真实排障情景演练</span>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
+                  真实排障情景演练（3 选 1 交互破案）
+                </h2>
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  点击 A / B / C 做出排障决策，即时判对错并展开救命命令与喂给 AI 的标准排障 Prompt（支持一键复制）。
+                </p>
               </div>
-              <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
-                性能工程师排障速查手册
-              </h2>
-              <p className="text-sm text-slate-600 dark:text-slate-400">
-                高频 Linux / <code className="font-mono text-sky-500">nvidia-smi</code> / vLLM OOM 调参 /{' '}
-                <code className="font-mono text-sky-500">torch.cuda.Event</code> 精准计时 / NCCL 死锁排障口诀，每张卡片支持一键复制。
-              </p>
+              <span className="px-3 py-1 rounded-full text-xs font-mono font-semibold bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/25 shrink-0">
+                已破案 {Object.values(scenarioAnswers).filter(Boolean).length} / {TROUBLESHOOTING_SCENARIOS.length} 场
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              {TROUBLESHOOTING_SCENARIOS.map((sc) => {
+                const picked = scenarioAnswers[sc.id];
+                const isAnswered = Boolean(picked);
+                const isRight = picked === sc.correctKey;
+
+                return (
+                  <div
+                    key={sc.id}
+                    className={`rounded-2xl border p-5 sm:p-6 space-y-4 transition-all ${
+                      !isAnswered
+                        ? 'border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B1120]/90'
+                        : isRight
+                          ? 'border-emerald-500/45 bg-emerald-500/[0.03] dark:bg-[#0B1120]/95'
+                          : 'border-rose-500/45 bg-rose-500/[0.03] dark:bg-[#0B1120]/95'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <h3 className="text-base font-bold text-slate-900 dark:text-white leading-snug">
+                        {sc.title}
+                      </h3>
+                      {isAnswered && (
+                        <span
+                          className={`shrink-0 px-2 py-0.5 rounded text-[11px] font-mono font-bold border ${
+                            isRight
+                              ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/35'
+                              : 'bg-rose-500/15 text-rose-700 dark:text-rose-300 border-rose-500/35'
+                          }`}
+                        >
+                          {isRight ? '✅ 破案正确' : `❌ 应选 ${sc.correctKey}`}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="rounded-xl bg-slate-50 dark:bg-[#060A13]/80 border border-slate-200/80 dark:border-slate-800 p-3.5 text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                      <span className="font-bold text-sky-600 dark:text-sky-400 mr-1">🔍 现场症状：</span>
+                      {sc.symptom}
+                    </div>
+
+                    <div className="space-y-2">
+                      {sc.options.map((opt) => {
+                        const selected = picked === opt.key;
+                        const rightOpt = opt.key === sc.correctKey;
+                        let optClass =
+                          'border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/50 text-slate-700 dark:text-slate-200 hover:border-sky-400/60';
+                        if (isAnswered) {
+                          if (rightOpt) {
+                            optClass =
+                              'border-emerald-500/60 bg-emerald-500/12 text-emerald-800 dark:text-emerald-200 font-medium';
+                          } else if (selected) {
+                            optClass =
+                              'border-rose-500/60 bg-rose-500/12 text-rose-800 dark:text-rose-200';
+                          } else {
+                            optClass =
+                              'border-slate-200/60 dark:border-slate-800/60 opacity-65 text-slate-500';
+                          }
+                        }
+
+                        return (
+                          <button
+                            key={opt.key}
+                            type="button"
+                            onClick={() =>
+                              setScenarioAnswers((prev) => ({ ...prev, [sc.id]: opt.key }))
+                            }
+                            className={`w-full text-left flex items-start gap-2.5 px-3.5 py-2.5 rounded-xl border text-xs transition-all ${optClass}`}
+                          >
+                            <span className="w-5 h-5 rounded-md font-mono font-bold text-[11px] flex items-center justify-center shrink-0 border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200">
+                              {opt.key}
+                            </span>
+                            <span className="leading-relaxed">{opt.text}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {isAnswered && (
+                      <div className="space-y-3 pt-2 border-t border-slate-200/80 dark:border-slate-800">
+                        <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-3 text-xs text-slate-700 dark:text-slate-200 leading-relaxed">
+                          <span className="font-bold text-emerald-600 dark:text-emerald-400 mr-1">
+                            ✅ 破案解析：
+                          </span>
+                          {sc.explanation}
+                        </div>
+
+                        <div className="rounded-xl bg-[#050811] border border-slate-800 p-3 space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-mono text-emerald-400 font-semibold">
+                              💻 救命命令
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleQuickCopy(`${sc.id}-cmd`, sc.rescueCommand)}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
+                            >
+                              {copiedId === `${sc.id}-cmd` ? (
+                                <>
+                                  <Check className="w-3 h-3 text-emerald-400" />
+                                  <span>已复制</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-3 h-3 text-sky-400" />
+                                  <span>复制命令</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                          <pre className="text-[11px] font-mono text-slate-200 overflow-x-auto whitespace-pre-wrap">
+                            {sc.rescueCommand}
+                          </pre>
+                        </div>
+
+                        <div className="rounded-xl border border-sky-500/30 bg-sky-500/[0.06] p-3 space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="inline-flex items-center gap-1.5 text-[11px] font-mono font-bold text-sky-600 dark:text-sky-400">
+                              <Bot className="w-3.5 h-3.5" />
+                              <span>🤖 喂给 AI 的排障 Prompt</span>
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleQuickCopy(`${sc.id}-prompt`, sc.aiPrompt)}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-mono bg-white dark:bg-slate-900 text-sky-700 dark:text-sky-300 border border-sky-500/30 hover:border-sky-400"
+                            >
+                              {copiedId === `${sc.id}-prompt` ? (
+                                <>
+                                  <Check className="w-3 h-3 text-emerald-500" />
+                                  <span>已复制</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-3 h-3" />
+                                  <span>复制 Prompt</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+                          <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                            「{sc.aiPrompt}」
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
+
+          {/* Middle Section: 10-Category Full-Stack Software Tools Cheatsheet Wall */}
+          <div className="space-y-5 pt-4 border-t border-slate-200 dark:border-slate-800">
+            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+              <div className="space-y-1.5">
+                <div className="inline-flex items-center gap-2 text-xs font-mono text-emerald-600 dark:text-emerald-400">
+                  <Wrench className="w-4 h-4" />
+                  <span>FULL-STACK TOOLKIT · 10 大类工业界全量软件工具速查墙</span>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
+                  10 大类 AI 芯片与系统实战工具速查墙
+                </h2>
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  补齐 Netron/ONNX、py-spy、nccl-tests、CUTLASS/TileLang、Mooncake/NIXL、msProf/ROCprof 等全栈大厂必备软件，支持分类筛选与一键复制。
+                </p>
+              </div>
+
+              <div className="relative w-full lg:w-72">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={toolSearch}
+                  onChange={(e) => setToolSearch(e.target.value)}
+                  placeholder="搜索工具（如 Netron, py-spy, nccl）..."
+                  className="w-full pl-8 pr-7 py-2 rounded-xl text-xs border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B1120] text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-none focus:border-sky-400"
+                />
+                {toolSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setToolSearch('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Category Filter Pills */}
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() => setToolCatFilter('全部')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                  toolCatFilter === '全部'
+                    ? 'bg-sky-500 text-slate-950 border-sky-400 font-semibold'
+                    : 'bg-white dark:bg-[#0B1120] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-sky-400/50'
+                }`}
+              >
+                全部 10 类
+              </button>
+              {SOFTWARE_TOOL_CATEGORIES.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setToolCatFilter(t.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                    toolCatFilter === t.id
+                      ? 'bg-sky-500 text-slate-950 border-sky-400 font-semibold'
+                      : 'bg-white dark:bg-[#0B1120] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-sky-400/50'
+                  }`}
+                >
+                  {t.shortCat}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {filteredTools.map((tool) => (
+                <div
+                  key={tool.id}
+                  className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B1120]/90 p-5 space-y-3.5 hover:border-sky-400/50 transition-all shadow-sm flex flex-col justify-between"
+                >
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-sky-500/12 text-sky-700 dark:text-sky-300 border border-sky-500/25 font-semibold">
+                        #{tool.index} · {tool.category}
+                      </span>
+                    </div>
+                    <div className="text-sm font-bold font-mono text-slate-900 dark:text-white leading-snug">
+                      {tool.tools}
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                      {tool.purpose}
+                    </p>
+                  </div>
+
+                  <CodeBlock
+                    title="高频救命命令 / 实战入口"
+                    language={tool.language}
+                    code={tool.command}
+                    collapsible={false}
+                    compact={true}
+                    copyLabel="复制命令"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Preserved Classic 5-Card Cheatsheet */}
+          <div className="space-y-5 pt-4 border-t border-slate-200 dark:border-slate-800">
+            <div className="space-y-1">
+              <div className="inline-flex items-center gap-2 text-xs font-mono text-amber-600 dark:text-amber-400">
+                <Wrench className="w-4 h-4" />
+                <span>CLASSIC CHEATSHEET · 经典 5 大保命口诀卡片</span>
+              </div>
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                经典随身排障口诀卡片
+              </h3>
+            </div>
 
           {/* Dual-Column Geek Cheatsheet Card Wall */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -1101,6 +1400,7 @@ export default function BenchmarksPage({ onOpenLesson }) {
                 </div>
               );
             })}
+          </div>
           </div>
         </div>
       )}

@@ -16,7 +16,7 @@ import {
 const NAV_ITEMS = [
   { id: 'home', label: '首页', icon: Home },
   { id: 'docs', label: '学习路线', icon: BookOpen },
-  { id: 'lab', label: '交互实验室', icon: FlaskConical, badge: '7合1' },
+  { id: 'lab', label: '交互实验室', icon: FlaskConical, badge: '9合1' },
   { id: 'benchmarks', label: '实战训练营', icon: Activity },
   { id: 'glossary', label: '术语词典', icon: BookMarked },
   {

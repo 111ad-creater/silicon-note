@@ -432,3 +432,235 @@ export TORCH_DISTRIBUTED_DEBUG=DETAIL`,
     tip: '多卡卡死（Hang）且 Util 100% 不动，开 INFO 日志看最后一行，排查 if 分支不对称。',
   },
 ];
+
+export const TROUBLESHOOTING_SCENARIOS = [
+  {
+    id: 'sc-1-fake-util',
+    index: '01',
+    title: '【情景 1】「假满载」迷案：GPU-Util 99%，但吞吐慢如蜗牛',
+    symptom:
+      '400W TDP 的 GPU 跑大模型推理，nvidia-smi 显示 GPU-Util=99%，但实时功耗仅 135W，吐字极慢。',
+    options: [
+      { key: 'A', text: '显卡已满载只能换更贵的卡' },
+      {
+        key: 'B',
+        text: '假满载！大概率卡在 HBM 带宽或小算子碎片，立刻看功耗并用 DCGM / Nsight 定位真实瓶颈',
+      },
+      { key: 'C', text: '重启服务器解决' },
+    ],
+    correctKey: 'B',
+    explanation:
+      '选 B！GPU-Util 只代表采样窗口内有 Kernel 活跃的时间占比，不反映核心是否在干等数据；功耗远低于 TDP 是典型 Memory-bound 或未开 CUDA Graph 信号。',
+    rescueCommand: `nvidia-smi dmon -s pucm\ndcgmi dmon -e 1001,1004,1005`,
+    aiPrompt:
+      '我的 400W GPU 跑大模型推理时 GPU-Util=99% 但功耗仅 135W，请结合 Batch=1 Decode 显存带宽墙和 CUDA Graph 未开启两个方向，给我一套 3 步排查清单。',
+  },
+  {
+    id: 'sc-2-vllm-oom',
+    index: '02',
+    title: '【情景 2】「开机即爆」迷案：14GB 模型塞进 24GB 显卡报 OOM',
+    symptom:
+      '24GB 显卡用 vLLM 部署 Qwen2.5-7B（权重仅 14GB），启动瞬间直接报 CUDA Out of Memory 崩溃。',
+    options: [
+      { key: 'A', text: '显卡显存缩水了' },
+      {
+        key: 'B',
+        text: '默认上下文上限（32K/128K）太大，vLLM 预分配的 KV Cache 撑爆了剩余 10GB 显存',
+      },
+      { key: 'C', text: 'CPU 内存不够' },
+    ],
+    correctKey: 'B',
+    explanation:
+      '选 B！调小 --max-model-len（如 8192）或改用 AWQ INT4 量化版瞬间解决。',
+    rescueCommand: `vllm serve Qwen/Qwen2.5-7B-Instruct --max-model-len 8192 --gpu-memory-utilization 0.90`,
+    aiPrompt:
+      '我用 24GB 显卡跑 vLLM 部署 7B 模型报 CUDA OOM，以下是终端日志 [粘贴日志]。请帮我算出合理的 --max-model-len 和 --gpu-memory-utilization 参数。',
+  },
+  {
+    id: 'sc-3-thermal-throttle',
+    index: '03',
+    title: '【情景 3】「3 分钟萎了」迷案：压测前快后慢，性能暴跌 30%',
+    symptom:
+      '连续压测前 2 分钟速度飞快，第 3 分钟起吐字速度突然断崖下降 30% 且一直维持低速。',
+    options: [
+      { key: 'A', text: '模型越写越累' },
+      {
+        key: 'B',
+        text: '芯片结温撞上散热红线，触发硬件 DVFS 热节流降频（Thermal Throttling）',
+      },
+      { key: 'C', text: '硬盘满了' },
+    ],
+    correctKey: 'B',
+    explanation:
+      '选 B！用性能查询命令一秒即可看到 Thermal Slowdown: Active。',
+    rescueCommand: `nvidia-smi -q -d PERFORMANCE | grep -A 10 'Clocks Throttle Reasons'`,
+    aiPrompt:
+      '我用 nvidia-smi 抓到压测 3 分钟后出现 SW Thermal Slowdown 且频率暴跌。请帮我写一段 Python 脚本每秒记录温度、频率与吞吐并画关联折线图。',
+  },
+  {
+    id: 'sc-4-numa-imbalance',
+    index: '04',
+    title: '【情景 4】「偏心显卡」迷案：8 卡机器里 4~7 号卡延迟偏高',
+    symptom:
+      '双路 CPU 的 8 卡服务器上，GPU 0~3 表现完美，但 GPU 4~7 数据加载延迟明显偏高且抖动。',
+    options: [
+      { key: 'A', text: 'GPU 4~7 质量差' },
+      {
+        key: 'B',
+        text: '跨 NUMA 节点远程访存！CPU 0 上的进程去喂挂在 CPU 1 下的 GPU 4~7',
+      },
+      { key: 'C', text: '网线松了' },
+    ],
+    correctKey: 'B',
+    explanation:
+      '选 B！用 nvidia-smi topo -m 确认亲和性，再用 numactl 就近绑核立竿见影。',
+    rescueCommand: `nvidia-smi topo -m\nnumactl --cpunodebind=1 --membind=1 python run_gpu4.py`,
+    aiPrompt:
+      '这是我服务器的 `nvidia-smi topo -m` 和 `lscpu` 输出 [粘贴输出]。请告诉我每张 GPU 归属哪个 NUMA 节点，并生成对应的 `numactl` 启动命令。',
+  },
+  {
+    id: 'sc-5-async-timer',
+    index: '05',
+    title: '【情景 5】「光速假象」迷案：PyTorch 矩阵乘测速只花 0.02ms',
+    symptom:
+      '用 t0 = time.time(); c = a @ b; t1 = time.time() 测大矩阵乘法只花 0.02ms，矩阵放大 10 倍时间也不变！',
+    options: [
+      { key: 'A', text: '硬件自动超频了' },
+      {
+        key: 'B',
+        text: 'CUDA 执行是异步的，没加 torch.cuda.synchronize()，只测了 CPU 发指令的时间',
+      },
+      { key: 'C', text: 'Python 计时器坏了' },
+    ],
+    correctKey: 'B',
+    explanation:
+      '选 B！异步 GPU 计时必须强制同步或用 torch.cuda.Event，外加 3~5 轮 Warmup 预热。',
+    rescueCommand: `start, end = torch.cuda.Event(True), torch.cuda.Event(True)\nstart.record(); c = a @ b; end.record(); torch.cuda.synchronize()`,
+    aiPrompt:
+      '请把这段 PyTorch 算子测试代码改写成大厂规范 Benchmark：含 5 轮 Warmup、用 torch.cuda.Event 测 50 轮、自动输出均值/P95/有效带宽(GB/s)。',
+  },
+  {
+    id: 'sc-6-npu-fallback',
+    index: '06',
+    title: '【情景 6】「自研 NPU 龟速」迷案：模型跑通了，速度只有 GPU 的 1/4',
+    symptom:
+      '将开源大模型移植到自研 NPU 后精度全对，但速度只有同级 GPU 的 1/4，且主机 CPU 占用率飙升。',
+    options: [
+      { key: 'A', text: 'NPU 硬件彻底失败' },
+      {
+        key: 'B',
+        text: '极可能存在不支持的新算子触发静默 CPU 回退（Operator Fallback），或小算子未融合/未开图下沉',
+      },
+      { key: 'C', text: 'Python 版本太低' },
+    ],
+    correctKey: 'B',
+    explanation:
+      '选 B！先用 PyTorch Profiler / msProf 抓包查算子设备分布，再查驱动气泡与片上存储双缓冲。',
+    rescueCommand: `with torch.profiler.profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as prof:\n    model(x)\nprof.export_chrome_trace('npu_trace.json')`,
+    aiPrompt:
+      '我将大模型适配到异构 NPU 后，Profiler 显示大量耗时在 CPU-Device 拷贝和细碎小 Kernel 间隙。请按优先级给我一套优化排查清单。',
+  },
+];
+
+export const SOFTWARE_TOOL_CATEGORIES = [
+  {
+    id: 'tool-linux',
+    index: '01',
+    category: '1. Linux 与远程开发基建',
+    shortCat: 'Linux 基建',
+    tools: 'Ubuntu Bash / VS Code Remote-SSH / Cursor / tmux / Git / Conda & Docker',
+    purpose: '远程直连云端显卡、后台防断网挂起、隔离 CUDA 环境、AI 结对排障',
+    command: `tmux new -s test\n# Ctrl+B 再按 D 后台挂起 | tmux attach 恢复\ndf -h && free -h && tail -f log.txt`,
+    language: 'bash',
+  },
+  {
+    id: 'tool-netron-onnx',
+    index: '02',
+    category: '2. 模型结构与异构部署(NPU 岗刚需)',
+    shortCat: 'Netron / ONNX',
+    tools: 'Netron / ONNX & ONNX Runtime / llama.cpp (GGUF)',
+    purpose: '一秒可视化大模型计算图查算子与张量 Shape；异构芯片模型导出与端侧部署（Ollama 底层）',
+    command: `# 打开 https://netron.app 拖入 .onnx 文件看计算图\nllama-cli -m model.gguf -p "Hello"`,
+    language: 'bash',
+  },
+  {
+    id: 'tool-smi-dcgm',
+    index: '03',
+    category: '3. 显卡与系统听诊器',
+    shortCat: 'DCGM / smi',
+    tools: 'nvidia-smi / nvtop / gpustat / htop / perf / numactl / NVIDIA DCGM',
+    purpose: '识破假 100% Util、抓热节流降频、查 CPU 负载与多卡拓扑亲和性',
+    command: `nvidia-smi dmon -s pucm\nnvidia-smi topo -m\ndcgmi dmon -e 1001,1004,1005`,
+    language: 'bash',
+  },
+  {
+    id: 'tool-pyspy',
+    index: '04',
+    category: '4. Python/CPU 火焰图(抓 CPU 拖后腿)',
+    shortCat: 'py-spy 火焰图',
+    tools: 'py-spy / cProfile',
+    purpose: 'GPU 空转而 CPU 满载时，无侵入实时生成 Python 火焰图，精准揪出慢分词或调度代码行',
+    command: `py-spy top --pid <PID>\npy-spy record -o flame.svg --pid <PID>`,
+    language: 'bash',
+  },
+  {
+    id: 'tool-profilers',
+    index: '05',
+    category: '5. 性能剖析核武器(含国产/AMD 等价)',
+    shortCat: 'nsys / msProf',
+    tools: 'NVIDIA Nsight Systems (nsys) / Nsight Compute (ncu) / PyTorch Profiler + Perfetto / Meta HTA / 昇腾 msProf / AMD ROCprof',
+    purpose: '宏观抓时间轴空白气泡（nsys）、微观画算子 Roofline（ncu）、多卡自动归因（HTA）及国产 NPU 剖析',
+    command: `nsys profile -o rep --trace=cuda,nvtx,osrt python run.py\nncu --set full -o k_rep python run.py`,
+    language: 'bash',
+  },
+  {
+    id: 'tool-nccl',
+    index: '06',
+    category: '6. 多卡与集群通信测速(AI Infra 必会)',
+    shortCat: 'nccl-tests / RDMA',
+    tools: 'nccl-tests / perftest (ib_write_bw)',
+    purpose: '直接测 NVLink / RDMA 真实裸带宽，30 秒定界“是网线/机房慢，还是业务代码慢”',
+    command: `./build/all_reduce_perf -b 8 -e 1G -f 2 -g 8\nib_write_bw -d mlx5_0`,
+    language: 'bash',
+  },
+  {
+    id: 'tool-serving-kv',
+    index: '07',
+    category: '7. 推理引擎、压测与 KV 池化',
+    shortCat: 'vLLM / Mooncake',
+    tools: 'vLLM (vllm bench) / SGLang / Ollama / TensorRT-LLM / EvalScope / GenAI-Perf / Mooncake / LMCache / NVIDIA NIXL',
+    purpose: '大模型部署、高并发 P99 与 Goodput 压测，以及 2026 前沿分布式 KV Cache 分级卸载与 PD 分离传输',
+    command: `vllm serve Qwen/Qwen2.5-7B-Instruct\nvllm bench serve --num-prompts 100 --max-concurrency 16`,
+    language: 'bash',
+  },
+  {
+    id: 'tool-kernels-cpp',
+    index: '08',
+    category: '8. 算子优化与 C++ 底座',
+    shortCat: 'Triton / TileLang',
+    tools: 'OpenAI Triton / TileLang / CUTLASS (CuTe) / CMake + GDB',
+    purpose: '类 Python 写融合算子（Triton/TileLang 跨 GPU/NPU）；读矩阵乘圣经（CUTLASS）；编译与查段错误',
+    command: `# @triton.jit 写 Fused RMSNorm/Softmax\ncmake -B build && cmake --build build && gdb ./sim`,
+    language: 'bash',
+  },
+  {
+    id: 'tool-arch-sim',
+    index: '09',
+    category: '9. 架构建模与硬件仿真',
+    shortCat: 'SystemC / Timeloop',
+    tools: 'C++ & SystemC / MIT Timeloop & Accelergy / gem5 / GPGPU-Sim',
+    purpose: '免写 Verilog 搭 Golden Model 与事务级/周期级模拟器，定量评估 PPA 与数据流映射',
+    command: `# Timeloop YAML 描述存储层次一键跑映射能耗\n# SystemC SC_MODULE 搭建 TLM 性能模拟器`,
+    language: 'bash',
+  },
+  {
+    id: 'tool-viz-docs',
+    index: '10',
+    category: '10. 数据可视化与作品沉淀',
+    shortCat: 'Matplotlib / 作品集',
+    tools: 'Python (Pandas + Matplotlib / Plotly) / Markdown + VitePress (SiliconNote)',
+    purpose: '自动清洗压测日志画出版级帕累托曲线与对比图，把排障报告沉淀成个人公开名片',
+    command: `# 把压测 CSV 喂给 AI 一键生成高清双轴对比图脚本，推送 GitHub 自动上线 Vercel`,
+    language: 'bash',
+  },
+];

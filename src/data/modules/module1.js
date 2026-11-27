@@ -357,5 +357,66 @@ export const module1 = {
         },
       ],
     },
+    {
+      id: '1.7',
+      title: '1.7 GPU 架构建模与黄金参考模型（Golden Model / SystemC / Timeloop）',
+      isCore: true,
+      readTime: '7 分钟',
+      tags: ['核心主线', 'GPU 架构建模', 'Golden Model', 'SystemC', 'Timeloop'],
+      goal: '理解流片前如何用 C++/SystemC/Timeloop 搭建“软件版假芯片”，定量评估微架构瓶颈与 PPA 权衡。',
+      blocks: [
+        { type: 'heading', text: '核心直觉' },
+        {
+          type: 'paragraph',
+          text: '造一颗顶级 GPU 流片动辄花几千万、耗时一年半，绝不可能先画好电路流出来再看跑得快不快！芯片架构师在画第一根电路线之前，会先用 C++（SystemC）或 Python 在电脑里写一个“软件版假芯片”（Golden Model）。把 DeepSeek/Qwen 的算子灌进去跑一遍，就能提前算出哪里会堵车（Hot Path），从而拍板决定下一代芯片要配多大阵列、多大 SRAM 和多少 HBM 带宽。',
+        },
+        { type: 'heading', text: '底层机制拆解' },
+        {
+          type: 'list',
+          ordered: true,
+          items: [
+            {
+              lead: '三级建模精度阶梯：',
+              body: '① 功能模型（Golden Model）：只管算出来的数字对不对，定义软硬件编程接口语义，作为验证和软件团队的唯一标准答案；② 事务级模型（TLM / SystemC）：把数据搬运当成一包包快递算粗略耗时，跑得极快，是工业界做架构探索的绝对主力；③ 周期精确模型（Cycle-Accurate，如 gem5 / GPGPU-Sim）：精确到每一个时钟周期的缓存冲突与总线排队。',
+            },
+            {
+              lead: '负载画像（Workload Characterization）与热路径（Hot Path）：',
+              body: '架构建模工程师的核心日常不是写 Verilog，而是分析目标大模型在不同 Batch 和序列长度下的算子占比、计算访存比和内存访问规律，揪出耗时最长的关键执行路径。',
+            },
+            {
+              lead: '免写 Verilog 的架构神器：',
+              body: 'C++ + SystemC（工业界搭性能模拟器标准）、MIT Timeloop / Accelergy（只需写 YAML 描述存储层次就能自动搜索 AI 加速器最优数据流与能耗 PPA）、ISS（指令集模拟器）。',
+            },
+          ],
+        },
+        {
+          type: 'table',
+          title: '核心对比表 · 芯片架构建模工具与层级对比',
+          headers: ['建模工具 / 层级', '核心编程语言', '仿真速度', '核心用途（解决什么问题）'],
+          rows: [
+            ['功能模型 (Golden Model)', 'C++ / Python', '极快', '定义软硬件编程抽象接口，提供算子精度的唯一标准答案'],
+            ['SystemC (TLM 事务级)', 'C++ (SystemC 库)', '较快', '工业界主流：快速探索缓存大小、总线宽度与模块间通信瓶颈'],
+            ['Timeloop / Accelergy', 'YAML + Python', '快', '免写 Verilog 评估 AI 加速器不同阵列/数据流映射的延迟与能耗'],
+            ['周期精确模型 (Cycle-Accurate)', 'C++ (gem5 / 自研)', '慢', '精确到单周期的微架构流水线、Cache 冲突与热路径定位'],
+          ],
+        },
+        {
+          type: 'callout',
+          variant: 'engineer',
+          title: 'AI 结对实战与性能算账视角',
+          copyText:
+            '请用 150 行 Python 帮我写一个极简的“片上 SRAM + Tensor Core 矩阵乘阵列”事务级耗时模拟器（Golden Model）：输入矩阵维度 (M, K, N)、片上 SRAM 容量(MB)、HBM 带宽(TB/s) 和峰值算力(TFLOPS)，自动按 Tiling 分块计算搬运耗时与计算耗时，输出瓶颈归属和加速建议。',
+          content:
+            '想入门「GPU 架构建模」，完全不需要先啃百万行 gem5 代码！直接让 AI 带着你用 150 行 Python 写一个极简的“SRAM + 矩阵乘阵列”耗时模拟器，输入模型维度和带宽自动输出瓶颈分析，就能亲手跑出你的第一个微缩版 Golden Model。',
+        },
+        {
+          type: 'quiz',
+          question:
+            '思考题：为什么 GPU 架构建模工程师不仅要懂硬件微架构，JD 里还强调「定义 GPU 编程模型抽象，主导软硬件接口设计」？',
+          answer:
+            '硬件设计得再强，如果编程抽象（如显存层级暴露、异步拷贝指令、张量核心调度语义）反人类，编译器和 PyTorch/vLLM 就根本发挥不出硬件性能。架构建模师站在软硬件正中间，必须确保新架构对上层软件友好。',
+        },
+      ],
+    },
   ],
 };

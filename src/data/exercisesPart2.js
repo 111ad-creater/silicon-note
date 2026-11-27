@@ -484,4 +484,91 @@ export const exercisesPart2 = {
         '因为在智算中心硬件采购与电费极其高昂的背景下，性能团队只要通过软硬协同调优把单卡有效吞吐（Goodput）翻一倍，就等于凭空为公司省下了一半的显卡采购费和机房电费，直接转化为产品的毛利和价格护城河。',
     },
   ],
+  '5.7': [
+    {
+      index: 1,
+      tag: '概念快测（单选）',
+      kind: 'choice',
+      question:
+        '某同学在 PyTorch 中测 GPU 算子耗时：`t0 = time.time(); out = layer(x); t1 = time.time()`，结果只有 0.01ms（快得离谱）。根本原因是？',
+      options: [
+        { key: 'A', text: '显卡超常发挥' },
+        { key: 'B', text: 'CUDA 发射是异步的，未调用 `torch.cuda.synchronize()` 只测了 CPU 发指令的时间' },
+        { key: 'C', text: 'PyTorch 跳过了计算' },
+        { key: 'D', text: '显存频率翻倍' },
+      ],
+      correctKey: 'B',
+      answer:
+        '选 B。GPU 异步干活，CPU 把指令扔进队列就立刻执行下一行了。必须加同步或用 `torch.cuda.Event`。',
+    },
+    {
+      index: 2,
+      tag: '纸面算账（算子融合收益）',
+      kind: 'open',
+      question:
+        '对 100 MB 张量连续做 3 个独立逐元素操作（Add → SiLU → Scale）。未融合时每步读写各 100MB；用 Triton 融合成 1 个 Kernel 后只需最初读 100MB、最终写 100MB。共省掉多少比例的 HBM 访存量？',
+      answer:
+        '未融合 = 3×200 = 600 MB；融合后 = 200 MB。直接省掉 66.7% 的 HBM 搬运量，理论加速近 3 倍！',
+    },
+  ],
+  '5.8': [
+    {
+      index: 1,
+      tag: '概念快测（单选）',
+      kind: 'choice',
+      question:
+        '在多轮 Agent 场景下，大厂用 Mooncake / LMCache 将海量历史 KV Cache 卸载到主机内存或分布式 SSD 池，前缀缓存命中率高达 90%。此时系统最容易冒出的 2026 新型瓶颈是？',
+      options: [
+        { key: 'A', text: 'Tensor Core 算力严重不够' },
+        { key: 'B', text: '存储 I/O 墙（网卡/总线从外部池拉取历史 KV 太慢，导致 GPU 功耗极低在干等数据）' },
+        { key: 'C', text: '屏幕刷新率太低' },
+        { key: 'D', text: '键盘延迟' },
+      ],
+      correctKey: 'B',
+      answer:
+        '选 B。前缀命中率极高反而让 Prefill 计算量暴跌，但疯狂从外部存储池把几十 GB 历史 KV 搬回显存的 I/O 带宽成了头号瓶颈。',
+    },
+    {
+      index: 2,
+      tag: '视野拓展（RL 后训练排障）',
+      kind: 'open',
+      question:
+        '为什么在大模型 RL（如 GRPO / RLVR）后训练中，70% 以上的时间都耗在 Rollout（推理生成轨迹）阶段，且 GPU 利用率越到后面越低？',
+      answer:
+        '因为同一 Batch 里不同题目的思维链（CoT）生成长度极度不均——短的 300 Token 就结束了，最长的要思考 2 万 Token。在同步批处理下，算完的 GPU 槽位只能干等那条最长的长尾轨迹跑完，形成严重的木桶效应（Straggler Tail）。',
+    },
+  ],
+  '8.6': [
+    {
+      index: 1,
+      tag: '概念快测（单选）',
+      kind: 'choice',
+      question:
+        '根据动态功耗公式 P = α·C·V²·f，若通过 DVFS 将电压 V 降 10%、频率 f 降 10%，动态功耗大约下降多少？',
+      options: [
+        { key: 'A', text: '约 10%' },
+        { key: 'B', text: '约 19%' },
+        { key: 'C', text: '约 27%' },
+        { key: 'D', text: '约 50%' },
+      ],
+      correctKey: 'C',
+      answer: '选 C（约 27%）。0.9² × 0.9 = 0.729，动态功耗下降约 27.1%！',
+    },
+    {
+      index: 2,
+      tag: '避坑实战（JD 扫雷）',
+      kind: 'choice',
+      question:
+        '招聘软件里看到以下 4 个岗位，哪个最符合“不碰 Verilog/UVM、发挥 IC 背景、主攻性能与架构”的目标？',
+      options: [
+        { key: 'A', text: 'GPU IP 验证工程师（精通 SV/UVM、VCS/Verdi）' },
+        { key: 'B', text: '硬件架构师（服务器整机、原理图与 PCB Layout 评审）' },
+        { key: 'C', text: 'NPU 高性能计算（vLLM 适配自研 NPU、驱动优化与竞品分析，电子信息硕士优先）' },
+        { key: 'D', text: 'AI 能耗优化（空调冰箱强化学习节能控制）' },
+      ],
+      correctKey: 'C',
+      answer:
+        '选 C！A 是硅前数字验证；B 是画电路板的服务器整机硬件；D 是家电算法；只有 C 精准踩中目标赛道。',
+    },
+  ],
 };

@@ -38,10 +38,11 @@ const ATTENTION_MODES = [
 ];
 
 const PRESETS = [
-  { label: '日常对话 (4K · 8并发 · GQA)', ctx: 4, batch: 8, bw: 2000, attn: 'gqa' },
-  { label: '短文本高并发 (2K · 64并发 · GQA)', ctx: 2, batch: 64, bw: 2400, attn: 'gqa' },
-  { label: '64K 长文档 MHA 爆显存', ctx: 64, batch: 16, bw: 2000, attn: 'mha' },
-  { label: 'DeepSeek MLA 极限瘦身 (64K · 32并发)', ctx: 64, batch: 32, bw: 2400, attn: 'mla' },
+  { label: '日常对话 (4K · 8并发 · GQA)', ctx: 4, batch: 8, bw: 2000, attn: 'gqa', agentic: false },
+  { label: '短文本高并发 (2K · 64并发 · GQA)', ctx: 2, batch: 64, bw: 2400, attn: 'gqa', agentic: false },
+  { label: '64K 长文档 MHA 爆显存', ctx: 64, batch: 16, bw: 2000, attn: 'mha', agentic: false },
+  { label: 'DeepSeek MLA 极限瘦身 (64K · 32并发)', ctx: 64, batch: 32, bw: 2400, attn: 'mla', agentic: false },
+  { label: '2026 Agentic 100K 卸载', ctx: 100, batch: 8, bw: 2400, attn: 'gqa', agentic: true },
 ];
 
 const HBM_CAPACITY_GB = 80;
@@ -63,6 +64,8 @@ export default function Lab1KvCache({ preset, presetNonce }) {
   const [concurrency, setConcurrency] = useState(16);
   const [bandwidthGBs, setBandwidthGBs] = useState(2000);
   const [attentionId, setAttentionId] = useState('gqa');
+  const [agenticMode, setAgenticMode] = useState(false);
+  const [agenticFp8Prefetch, setAgenticFp8Prefetch] = useState(false);
 
   useEffect(() => {
     if (!preset) return;
@@ -79,6 +82,11 @@ export default function Lab1KvCache({ preset, presetNonce }) {
       if (['mha', 'gqa', 'mla'].includes(lower)) {
         setAttentionId(lower);
       }
+    }
+    if (typeof preset.agentic === 'boolean') {
+      setAgenticMode(preset.agentic);
+    } else {
+      setAgenticMode(false);
     }
   }, [preset, presetNonce]);
 
@@ -150,6 +158,7 @@ export default function Lab1KvCache({ preset, presetNonce }) {
     setConcurrency(p.batch);
     setBandwidthGBs(p.bw);
     setAttentionId(p.attn);
+    setAgenticMode(Boolean(p.agentic));
   };
 
   return (
@@ -165,13 +174,83 @@ export default function Lab1KvCache({ preset, presetNonce }) {
             <button
               key={p.label}
               onClick={() => applyPreset(p)}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B1120] hover:border-sky-400/60 text-slate-700 dark:text-slate-300 transition-colors"
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                p.agentic && agenticMode
+                  ? 'border-sky-400 bg-sky-500/15 text-sky-700 dark:text-sky-300 font-semibold'
+                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B1120] hover:border-sky-400/60 text-slate-700 dark:text-slate-300'
+              }`}
             >
               {p.label}
             </button>
           ))}
         </div>
       </div>
+
+      {/* 2026 Agentic KV I/O Wall Interactive Comparison Strip */}
+      {agenticMode && (
+        <div className="rounded-2xl border border-sky-500/35 bg-gradient-to-r from-sky-500/10 via-indigo-500/5 to-emerald-500/10 p-5 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div className="text-xs font-mono font-bold text-sky-600 dark:text-sky-400 uppercase">
+                2026 FRONTIER · AGENTIC STORAGE I/O WALL SIMULATOR
+              </div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white mt-0.5">
+                100K 多轮 Agent 历史前缀卸载：外部 DRAM/SSD 池拉取瓶颈对比
+              </h3>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setAgenticFp8Prefetch(false)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold border transition-colors ${
+                  !agenticFp8Prefetch
+                    ? 'bg-rose-500 text-white border-rose-400'
+                    : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                }`}
+              >
+                未开启 FP8 KV（触发 Storage I/O 墙）
+              </button>
+              <button
+                type="button"
+                onClick={() => setAgenticFp8Prefetch(true)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-semibold border transition-colors ${
+                  agenticFp8Prefetch
+                    ? 'bg-emerald-500 text-slate-950 border-emerald-400'
+                    : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                }`}
+              >
+                开启 FP8 KV + 异步预取
+              </button>
+            </div>
+          </div>
+
+          <div className="grid sm:grid-cols-3 gap-3">
+            <div className="p-3.5 rounded-xl bg-white/80 dark:bg-[#0B1120]/90 border border-rose-500/30">
+              <div className="text-[11px] font-mono text-rose-500">方案 A：全塞本地 HBM</div>
+              <div className="text-lg font-mono font-bold text-rose-500 mt-0.5">OOM 爆表 (116 GB)</div>
+              <p className="text-xs text-slate-500 mt-1">8 并发 × 100K 历史 KV 远超 80GB HBM 上限。</p>
+            </div>
+            <div className="p-3.5 rounded-xl bg-white/80 dark:bg-[#0B1120]/90 border border-slate-200 dark:border-slate-800">
+              <div className="text-[11px] font-mono text-slate-500">外部 KV I/O 拉取耗时占比</div>
+              <div className={`text-lg font-mono font-bold mt-0.5 ${agenticFp8Prefetch ? 'text-emerald-500' : 'text-amber-500'}`}>
+                {agenticFp8Prefetch ? '34%（I/O 减半并重叠）' : '70%（GPU 功耗仅 25%）'}
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                {agenticFp8Prefetch
+                  ? 'FP8 压缩数据量 50% + RDMA 异步预取隐藏等待。'
+                  : '前缀命中 90%，但 GPU 在干等网卡/SSD 传回历史 KV。'}
+              </p>
+            </div>
+            <div className="p-3.5 rounded-xl bg-white/80 dark:bg-[#0B1120]/90 border border-slate-200 dark:border-slate-800">
+              <div className="text-[11px] font-mono text-slate-500">端到端 TTFT 首字延迟</div>
+              <div className={`text-lg font-mono font-bold mt-0.5 ${agenticFp8Prefetch ? 'text-emerald-500' : 'text-rose-500'}`}>
+                {agenticFp8Prefetch ? '210 ms (丝滑达标)' : '640 ms (严重卡顿)'}
+              </div>
+              <p className="text-xs text-slate-500 mt-1">源自第 5.8 课：2026 Agentic KV I/O 墙实战。</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Split Workspace */}
       <div className="grid lg:grid-cols-12 gap-6 items-start">

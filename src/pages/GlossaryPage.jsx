@@ -2,6 +2,29 @@ import React, { useState, useMemo } from 'react';
 import { Search, BookMarked, Lightbulb, Cpu, X } from 'lucide-react';
 import { GLOSSARY_TERMS, GLOSSARY_CATEGORIES } from '../data/glossary';
 
+function escapeRegExp(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function highlightMatch(text, query) {
+  const q = query.trim();
+  if (!q || !text) return text;
+  const regex = new RegExp(`(${escapeRegExp(q)})`, 'gi');
+  const parts = String(text).split(regex);
+  return parts.map((part, i) =>
+    part.toLowerCase() === q.toLowerCase() ? (
+      <mark
+        key={i}
+        className="px-0.5 rounded bg-amber-300/60 dark:bg-amber-400/30 text-slate-950 dark:text-amber-200 font-semibold"
+      >
+        {part}
+      </mark>
+    ) : (
+      part
+    )
+  );
+}
+
 export default function GlossaryPage() {
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('全部');
@@ -9,12 +32,14 @@ export default function GlossaryPage() {
   const filteredTerms = useMemo(() => {
     const q = query.trim().toLowerCase();
     return GLOSSARY_TERMS.filter((item) => {
-      const matchCat = activeCategory === '全部' || item.category === activeCategory;
+      const catValue = item.filterCategory || item.category;
+      const matchCat = activeCategory === '全部' || catValue === activeCategory;
       if (!matchCat) return false;
       if (!q) return true;
       return (
         item.term.toLowerCase().includes(q) ||
         item.fullName.toLowerCase().includes(q) ||
+        item.category.toLowerCase().includes(q) ||
         item.plainDesc.toLowerCase().includes(q) ||
         item.analogy.toLowerCase().includes(q) ||
         item.spec.toLowerCase().includes(q)
@@ -47,7 +72,7 @@ export default function GlossaryPage() {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="搜索术语、英文全称或关键词（如 HBM、KV、书桌、Roofline）..."
+              placeholder="搜索中英文术语（如 Golden Model、MXFP4、Rollout、Boundary Tax、HBM）..."
               className="w-full pl-10 pr-9 py-2.5 rounded-xl text-sm border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-400/20 transition-all"
             />
             {query && (
@@ -105,10 +130,10 @@ export default function GlossaryPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <h2 className="text-xl font-extrabold font-mono tracking-tight text-slate-900 dark:text-white">
-                        {item.term}
+                        {highlightMatch(item.term, query)}
                       </h2>
                       <p className="text-xs font-mono text-sky-600 dark:text-sky-400 mt-0.5">
-                        {item.fullName}
+                        {highlightMatch(item.fullName, query)}
                       </p>
                     </div>
                     <span
@@ -124,15 +149,15 @@ export default function GlossaryPage() {
 
                   {/* One-sentence plain explanation */}
                   <p className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">
-                    {item.plainDesc}
+                    {highlightMatch(item.plainDesc, query)}
                   </p>
 
                   {/* Analogy Box */}
                   <div className="rounded-xl bg-slate-50 dark:bg-[#060A13]/90 border border-slate-200/80 dark:border-slate-800/90 p-3.5 flex items-start gap-2.5">
                     <Lightbulb className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                     <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                      <span className="font-semibold text-slate-800 dark:text-slate-100">生活类比：</span>
-                      {item.analogy}
+                      <span className="font-semibold text-slate-800 dark:text-slate-100">直觉 / 场景：</span>
+                      {highlightMatch(item.analogy, query)}
                     </p>
                   </div>
                 </div>
@@ -140,7 +165,7 @@ export default function GlossaryPage() {
                 {/* Spec Footer */}
                 <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center gap-2 text-[11px] font-mono text-slate-500 dark:text-slate-400">
                   <Cpu className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                  <span>{item.spec}</span>
+                  <span>{highlightMatch(item.spec, query)}</span>
                 </div>
               </div>
             );

@@ -23,10 +23,13 @@ import {
   HelpCircle,
   ClipboardCheck,
   Check,
+  Copy,
+  Radar,
 } from 'lucide-react';
 import { CURRICULUM_STAGES } from '../data/curriculum';
 import LessonLabCard from '../components/LessonLabCard';
 import { LESSON_LAB_WIDGETS } from '../data/labCatalog';
+import { copyTextToClipboard } from '../components/CodeBlock';
 
 const CALLOUT_STYLES = {
   engineer: {
@@ -109,6 +112,11 @@ function getBlockSearchText(block) {
   }
   if (block.type === 'quiz') {
     return `${block.question || ''} ${block.answer || ''}`;
+  }
+  if (block.type === 'jd_radar' && Array.isArray(block.items)) {
+    return `${block.title || ''} ${block.items
+      .map((i) => `${i.role} ${i.snippet} ${i.reason}`)
+      .join(' ')}`;
   }
   if (block.type === 'exercises' && Array.isArray(block.items)) {
     return block.items
@@ -269,6 +277,161 @@ function ExerciseGroup({ lessonId, items }) {
         {items.map((item) => (
           <ExerciseItem key={`${lessonId}-ex-${item.index}`} item={item} />
         ))}
+      </div>
+    </section>
+  );
+}
+
+function CalloutBlock({ block }) {
+  const [copied, setCopied] = useState(false);
+  const style = CALLOUT_STYLES[block.variant] || CALLOUT_STYLES.tip;
+  const Icon = style.icon;
+
+  const handleCopy = async () => {
+    const textToCopy = block.copyText || block.content;
+    const ok = await copyTextToClipboard(textToCopy);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  return (
+    <div
+      className={`rounded-xl p-4 sm:p-5 space-y-2 ${
+        block.variant === 'engineer' ? '' : 'border '
+      }${style.boxClass}`}
+    >
+      <div className={`flex flex-wrap items-center gap-2 font-semibold text-sm ${style.titleClass}`}>
+        <Icon className="w-4 h-4 shrink-0" />
+        <span>{block.title}</span>
+        <div className="ml-auto flex items-center gap-2">
+          {block.copyText && (
+            <button
+              type="button"
+              onClick={handleCopy}
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-mono border transition-colors ${
+                copied
+                  ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/40'
+                  : 'bg-white/80 dark:bg-slate-900/80 text-sky-700 dark:text-sky-300 border-sky-500/30 hover:border-sky-400'
+              }`}
+            >
+              {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+              <span>{copied ? '已复制' : '一键复制命令/Prompt'}</span>
+            </button>
+          )}
+          <span className="text-[10px] font-mono uppercase opacity-75">
+            {style.label}
+          </span>
+        </div>
+      </div>
+      <p className="text-sm leading-7 whitespace-pre-line opacity-95">
+        {renderInlineText(block.content)}
+      </p>
+    </div>
+  );
+}
+
+function JdRadarQuiz({ block }) {
+  const [answers, setAnswers] = useState({});
+  const items = block.items || [];
+  const answeredCount = Object.keys(answers).length;
+  const correctCount = items.filter((item) => answers[item.id] === item.verdict).length;
+
+  return (
+    <section
+      aria-label="JD 关键词避坑雷达"
+      className="rounded-2xl border border-sky-500/30 bg-gradient-to-br from-sky-500/[0.05] via-white to-emerald-500/[0.04] dark:from-[#0B1120] dark:via-[#0B1120] dark:to-emerald-950/20 p-5 sm:p-6 space-y-4"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-2 text-xs font-mono font-bold text-sky-600 dark:text-sky-400 uppercase tracking-wider">
+            <Radar className="w-4 h-4 shrink-0" />
+            <span>{block.title}</span>
+          </div>
+          {block.subtitle && (
+            <p className="text-xs text-slate-600 dark:text-slate-400">{block.subtitle}</p>
+          )}
+        </div>
+        <span className="px-2.5 py-1 rounded-full text-xs font-mono font-bold border border-sky-500/30 bg-sky-500/10 text-sky-700 dark:text-sky-300">
+          得分：{correctCount} / {items.length}（已判 {answeredCount}/{items.length}）
+        </span>
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-3.5">
+        {items.map((item, idx) => {
+          const picked = answers[item.id];
+          const isAnswered = Boolean(picked);
+          const isRight = picked === item.verdict;
+          return (
+            <div
+              key={item.id}
+              className={`rounded-xl border p-4 space-y-3 transition-all ${
+                !isAnswered
+                  ? 'border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/60'
+                  : isRight
+                    ? 'border-emerald-500/45 bg-emerald-500/[0.06]'
+                    : 'border-rose-500/45 bg-rose-500/[0.06]'
+              }`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-mono font-bold text-slate-900 dark:text-white">
+                  #{idx + 1} · {item.role}
+                </span>
+                {isAnswered && (
+                  <span
+                    className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                      isRight
+                        ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300'
+                        : 'bg-rose-500/20 text-rose-700 dark:text-rose-300'
+                    }`}
+                  >
+                    {isRight ? '判断精准' : '踩坑了'}
+                  </span>
+                )}
+              </div>
+
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                {item.snippet}
+              </p>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAnswers((prev) => ({ ...prev, [item.id]: 'go' }))}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-mono font-bold border transition-colors ${
+                    picked === 'go'
+                      ? item.verdict === 'go'
+                        ? 'bg-emerald-500 text-slate-950 border-emerald-400'
+                        : 'bg-rose-500 text-white border-rose-400'
+                      : 'bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-emerald-400'
+                  }`}
+                >
+                  冲 ✅
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAnswers((prev) => ({ ...prev, [item.id]: 'run' }))}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-mono font-bold border transition-colors ${
+                    picked === 'run'
+                      ? item.verdict === 'run'
+                        ? 'bg-emerald-500 text-slate-950 border-emerald-400'
+                        : 'bg-rose-500 text-white border-rose-400'
+                      : 'bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-rose-400'
+                  }`}
+                >
+                  逃 ❌
+                </button>
+              </div>
+
+              {isAnswered && (
+                <p className="text-xs leading-relaxed text-slate-700 dark:text-slate-200 pt-1 border-t border-slate-200/70 dark:border-slate-800/80">
+                  {item.reason}
+                </p>
+              )}
+            </div>
+          );
+        })}
       </div>
     </section>
   );
@@ -681,27 +844,11 @@ export default function DocsPage({
                   }
 
                   if (block.type === 'callout') {
-                    const style = CALLOUT_STYLES[block.variant] || CALLOUT_STYLES.tip;
-                    const Icon = style.icon;
-                    return (
-                      <div
-                        key={idx}
-                        className={`rounded-xl p-4 sm:p-5 space-y-2 ${
-                          block.variant === 'engineer' ? '' : 'border '
-                        }${style.boxClass}`}
-                      >
-                        <div className={`flex items-center gap-2 font-semibold text-sm ${style.titleClass}`}>
-                          <Icon className="w-4 h-4 shrink-0" />
-                          <span>{block.title}</span>
-                          <span className="ml-auto text-[10px] font-mono uppercase opacity-75">
-                            {style.label}
-                          </span>
-                        </div>
-                        <p className="text-sm leading-7 whitespace-pre-line opacity-95">
-                          {renderInlineText(block.content)}
-                        </p>
-                      </div>
-                    );
+                    return <CalloutBlock key={idx} block={block} />;
+                  }
+
+                  if (block.type === 'jd_radar') {
+                    return <JdRadarQuiz key={idx} block={block} />;
                   }
 
                   if (block.type === 'table') {

@@ -298,5 +298,65 @@ export const module3 = {
         },
       ],
     },
+    {
+      id: '3.6',
+      title: '3.6 算子计算图拆解与计算访存分析实战（Netron / PyTorch Profiler）',
+      isCore: true,
+      readTime: '7 分钟',
+      tags: ['核心主线', 'Netron', 'PyTorch Profiler', 'Perfetto', '算子拆解'],
+      goal: '学会用 Netron 与 PyTorch Profiler 把大模型拆解为 GEMM/Attention/RMSNorm 等算子积木，定位高耗时低算术强度热点。',
+      blocks: [
+        { type: 'heading', text: '核心直觉' },
+        {
+          type: 'paragraph',
+          text: '在老板眼里大模型是黑盒，但在性能工程师眼里大模型是一张由几十种基础算子拼成的“乐高图纸”。想让模型变快，第一步是用 Netron 看清 ONNX 计算图结构，把模型拆成 GEMM、Attention、RMSNorm、RoPE、SiLU 等积木块，算出各自的 FLOPs 与 Bytes，揪出那个“干活最少、占时间最多”的偷懒算子！',
+        },
+        { type: 'heading', text: '底层机制拆解' },
+        {
+          type: 'list',
+          ordered: true,
+          items: [
+            {
+              lead: 'Transformer 算子解剖：',
+              body: '大模型 90% 以上的计算量（FLOPs）集中在 QKV/Output 投影和 MLP 的矩阵乘法（GEMM）上；但实际运行时间里，像 RMSNorm、SiLU、Softmax、RoPE 这些计算量不到 1% 的逐元素（Element-wise）和归约（Reduction）算子，常因反复读写 HBM 吃掉 20%~40% 的时间！',
+            },
+            {
+              lead: '算子级算术强度铁律：',
+              body: 'GEMM 在大 Batch 时数据复用率极高，属于 Compute-bound；而逐元素算子读一个数算完立刻写回，算术强度常 ≤ 1 FLOP/Byte，属于死硬的 Memory-bound。',
+            },
+            {
+              lead: '零成本剖析组合拳：',
+              body: '① Netron + ONNX（打开模型文件一秒可视化计算图节点与张量 Shape）；② PyTorch Profiler + Perfetto UI（3 行代码导出 `trace.json` 拖进 `ui.perfetto.dev` 缩放看 GPU 算子耗时）；③ Meta HTA（Holistic Trace Analysis，自动批量分析多卡 Trace 报告）。',
+            },
+          ],
+        },
+        {
+          type: 'table',
+          title: '核心对比表 · Transformer 典型算子计算访存画像',
+          headers: ['Transformer 典型算子', '计算量占比 (FLOPs)', '算术强度特征', '优化核心手段'],
+          rows: [
+            ['Linear / GEMM (矩阵乘)', '极高（> 90%）', 'Prefill 偏算力瓶颈；Decode 偏访存瓶颈', 'Tensor Core、FP8/MXFP4 量化、增大 Batch'],
+            ['Attention (Q·K^T·V)', '随上下文平方增长', '长上下文下中间矩阵极其吃显存带宽', 'FlashAttention 分块融合 / NSA 稀疏注意力'],
+            ['RMSNorm / LayerNorm', '极低（< 1%）', '极低（死硬 Memory-bound，需扫两遍数据）', '与前后残差加法融合为单个 Kernel (Triton/TileLang)'],
+            ['RoPE / SiLU / Add', '极低（< 1%）', '极低（纯搬运工，启动开销常大于计算）', '算子融合（Operator Fusion）+ CUDA Graph'],
+          ],
+        },
+        {
+          type: 'callout',
+          variant: 'engineer',
+          title: '3 行代码出专业算子耗时报告',
+          copyText: `with torch.profiler.profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as prof:\n    out = model(x)\nprof.export_chrome_trace('trace.json')`,
+          content:
+            '导出 `trace.json` 后直接拖进 `https://ui.perfetto.dev` 查看时间轴耗时；静态 ONNX 模型结构直接拖进 `https://netron.app` 排查节点形状：\n`with torch.profiler.profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as prof:`\n`    out = model(x)`\n`prof.export_chrome_trace(\'trace.json\')`',
+        },
+        {
+          type: 'quiz',
+          question:
+            '思考题：既然矩阵乘法（GEMM）占了 90% 以上计算量，为什么芯片架构师和 AI Infra 工程师还要花大力气优化占比不到 1% 的 Softmax 和 RMSNorm？',
+          answer:
+            '根据阿姆达尔定律（Amdahl\'s Law），当 GEMM 被 Tensor Core 和 FP8/FP4 加速了 10 倍后，吃不到 Tensor Core 红利且卡在带宽上的 Softmax/RMSNorm 耗时占比会从 5% 暴涨到 30%~40%，反客为主成为拖慢全卡的新瓶颈。',
+        },
+      ],
+    },
   ],
 };

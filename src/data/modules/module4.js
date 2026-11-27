@@ -302,5 +302,127 @@ export const module4 = {
         },
       ],
     },
+    {
+      id: '4.6',
+      title: '4.6 NPU 软件栈、算子调度与 vLLM/Ollama/ONNX 异构适配实战',
+      isCore: true,
+      readTime: '7 分钟',
+      tags: ['核心主线', 'NPU 高性能计算', 'vLLM 适配', 'Operator Fallback', 'msProf'],
+      goal: '打通开源大模型到自研 NPU 的全栈移植链路，揪出算子回退、下发碎针与片上搬运未重叠三大真凶。',
+      blocks: [
+        { type: 'heading', text: '核心直觉' },
+        {
+          type: 'paragraph',
+          text: '国产自研 NPU 硬件纸面算力常常很猛，但一跑 DeepSeek 或 Qwen 却比英伟达慢好几倍，甚至直接报错。因为开源大模型默认只认 CUDA！NPU 高性能计算工程师就是“翻译官兼性能侦探”——把 vLLM / Ollama（底层 llama.cpp）/ ONNX 模型丝滑搬到自研 NPU 上，打通驱动、片上存储搬运与算子调度，再拿英伟达当竞品对标把每一毫秒抠回来。',
+        },
+        { type: 'heading', text: '底层机制拆解' },
+        {
+          type: 'list',
+          ordered: true,
+          items: [
+            {
+              lead: '大模型在自研 NPU 上的完整通路：',
+              body: '上层推理引擎（vLLM / Ollama / llama.cpp / ONNX Runtime） → 计算图捕获与算子切分 → 硬件后端插件（Hardware Plugin） → NPU 驱动程序（DMA 搬运与指令队列下发） → 片上存储（SRAM / Global Buffer）与矩阵计算阵列执行。',
+            },
+            {
+              lead: '自研 NPU 跑慢的三大头号真凶：',
+              body: '① 算子回退（Operator Fallback）：某个冷门新算子 NPU 没实现，悄悄退回 CPU 算完再拷回 NPU，来回过 PCIe 慢如蜗牛；② 驱动下发碎针（Kernel Launch Overhead）：小算子太多没开图下沉（Graph Capture），NPU 算完就在空等 CPU 发下一条指令；③ 片上搬运未重叠：算力单元干等着 DMA 搬下一块权重，没做好双缓冲（Double Buffering）。',
+            },
+            {
+              lead: '多元芯片剖析与竞品对标：',
+              body: '除了英伟达的 `nsys`/`ncu`，国产昇腾的 **msProf / MindStudio** 和 AMD 的 **ROCprof** 底层逻辑完全一致——都在时间轴上抓算子回退、搬运气泡与 MBU 差距，再用对齐条件跑出的帕累托曲线与能效比（Tokens/s/W）指导自家芯片迭代。',
+            },
+          ],
+        },
+        {
+          type: 'table',
+          title: '核心对比表 · 自研 NPU 软件栈排障矩阵',
+          headers: ['NPU 软件栈层级', '核心职责（大白话）', '常见性能翻车点', '优化与排查武器'],
+          rows: [
+            ['推理框架适配层 (vLLM / Ollama / ONNX)', '管理 KV Cache、GGUF/ONNX 导出、连续批处理', '未适配 NPU 专属 PagedAttention 或 ONNX 算子版本不对齐', 'Netron 查图、对接框架插件、替换定制融合算子'],
+            ['图优化与算子调度层', '融合零散小算子，规划片上 SRAM 复用', '个别新算子不支持，触发静默 CPU 回退', 'msProf/ROCprof 查设备分布、用 Triton/TileLang 补齐算子'],
+            ['驱动与 Runtime 层', '内存分配、DMA 搬运、向硬件队列发射指令', '同步锁卡顿，小算子发射间隙大', '开启图下沉（Graph Capture）、优化异步队列'],
+            ['竞品对标与能耗调优', '横向对比 GPU 找差距，端侧严控功耗墙', '只看峰值算力不看端到端，或过热降频', '对齐条件跑帕累托曲线、监测 Tokens/J 能效比'],
+          ],
+        },
+        {
+          type: 'callout',
+          variant: 'engineer',
+          title: 'AI 结对排障 Prompt 模板',
+          copyText:
+            '我正在把 vLLM / ONNX 模型适配到一款异构 NPU 芯片，下面这段 Profiler 日志显示 Attention 后的 RMSNorm 耗时异常且触发了 CPU 同步。请帮我定位 3 个最可能的 Operator Fallback 或驱动下发原因，并给出用 Python 最小复现脚本验证的步骤。',
+          content:
+            '指挥 AI 排障 Prompt：「我正在把 vLLM / ONNX 模型适配到一款异构 NPU 芯片，下面这段 Profiler 日志显示 Attention 后的 RMSNorm 耗时异常且触发了 CPU 同步。请帮我定位 3 个最可能的 Operator Fallback 或驱动下发原因，并给出用 Python 最小复现脚本验证的步骤。」',
+        },
+        {
+          type: 'quiz',
+          question:
+            '思考题：为什么说把 vLLM / Ollama 丝滑适配到国产 NPU 等多元芯片上，是实现“算力平权”最关键的工程拼图之一？',
+          answer:
+            '只有打破对单一昂贵顶级 GPU 的软件生态垄断，让开源大模型在性价比更高、供应更充足的多元芯片上无缝高速运行，算力供给才会真正充裕，API 价格和硬件门槛才能彻底打下来。',
+        },
+      ],
+    },
+    {
+      id: '4.7',
+      title: '4.7 Linux 底层直觉、Python 火焰图（py-spy）与 C++ 内存底座',
+      isCore: true,
+      readTime: '7 分钟',
+      tags: ['核心主线', 'Linux', 'py-spy', 'NUMA', 'C++ 内存布局'],
+      goal: '打通软硬件交界处的 OS DMA/NUMA 阀门、`py-spy` 无侵入火焰图抓 CPU 瓶颈，以及 C++ 缓存局部性与构建底座。',
+      blocks: [
+        { type: 'heading', text: '核心直觉' },
+        {
+          type: 'paragraph',
+          text: '不需要去死背 408 全套考题或啃完千页 C++ 语法书，但必须打通软硬件交界处的 3 个底层直觉：OS 怎么经 PCIe DMA 喂显卡、遇到 GPU 空转 CPU 满载怎么用 `py-spy` 火焰图一秒抓出慢在哪行 Python 代码，以及 C++ 指针、连续内存布局与 `CMake + GDB` 为什么是 AI 系统工程师的保命底座。',
+        },
+        { type: 'heading', text: '底层机制拆解' },
+        {
+          type: 'list',
+          ordered: true,
+          items: [
+            {
+              lead: 'OS 底层三大性能阀门：',
+              body: '① 虚拟内存分页（vLLM PagedAttention 的亲爹，以及防主机内存爆掉触发 OOM Killer）；② PCIe DMA 与锁页内存（Pinned Memory，开启 `pin_memory=True` 省去二次拷贝）；③ NUMA 绑核（双路服务器上用 `numactl` 把进程绑在离 GPU 最近的 CPU 插槽上）。',
+            },
+            {
+              lead: '抓出 CPU 拖后腿的利器——`py-spy` 火焰图：',
+              body: '`htop` 只能告诉你 Python 进程占了 100% CPU，但不知道慢在哪一行！执行 `py-spy top --pid <PID>` 或生成火焰图，无侵入一秒揪出慢分词器、高频 JSON 解析或死循环调度代码。',
+            },
+            {
+              lead: '面试高频 C++ 底座直觉（精简版）：',
+              body: '① 指针与引用（内存地址门牌号，传引用零拷贝，传值把几 GB 张量傻傻复制一遍）；② 行优先（Row-Major）内存布局与 64B Cache Line 空间局部性（连续读比跨行跳跃读快 5~10 倍）；③ `CMake`（编译开源 C++/SystemC 模拟器与推理引擎）与 `GDB`（定位段错误 Segmentation Fault）。',
+            },
+          ],
+        },
+        {
+          type: 'table',
+          title: '核心对比表 · AI 系统工程师底层命令与底座',
+          headers: ['工程底座模块', '必须建立的核心直觉', '大厂实战 / 高频救命命令'],
+          rows: [
+            ['Linux 终端防断网', '99% 算力在远程 Linux，后台挂起防断实验', '`tmux new -s exp` | `Ctrl+B` 再按 `D` | `tmux attach` | `df -h` | `free -h`'],
+            ['Python 火焰图排障', 'GPU 闲着而 CPU 飙满时，精确定位慢在哪行 Python', '`py-spy top --pid <PID>` | `py-spy record -o profile.svg --pid <PID>`'],
+            ['OS 搬运与 NUMA', '排查跨 CPU 插槽绕路延迟与 PCIe 搬运气泡', '`nvidia-smi topo -m` | `numactl --cpunodebind=0 --membind=0 python run.py`'],
+            ['C++ 内存与构建', '零拷贝传引用、连续访存吃满 Cache Line、查段错误', '二维数组内层沿行连续递增；`cmake -B build && cmake --build build`'],
+          ],
+        },
+        {
+          type: 'callout',
+          variant: 'engineer',
+          title: 'AI 结对写自动化压测脚本 Prompt',
+          copyText:
+            '请帮我写一段 Bash + Python 脚本：依次在并发数 [1, 4, 16, 32] 下调用 vllm bench serve，将 TTFT/TPOT/P99 存入 results.csv，并附带 Matplotlib 绘图代码画出吞吐-延迟帕累托曲线，遇到 OOM 自动记录并跳过继续跑下一组。',
+          content:
+            '指挥 AI 写自动化压测脚本 Prompt：「请帮我写一段 Bash + Python 脚本：依次在并发数 [1, 4, 16, 32] 下调用 vllm bench serve，将 TTFT/TPOT/P99 存入 results.csv，并附带 Matplotlib 绘图代码画出吞吐-延迟帕累托曲线，遇到 OOM 自动记录并跳过继续跑下一组。」',
+        },
+        {
+          type: 'quiz',
+          question:
+            '思考题：既然 AI 写 Python 和 C++ 这么快，为什么 AI Infra 和芯片性能岗依然要考察「指针、内存布局、DMA 和分页」？',
+          answer:
+            'AI 能 3 秒写出语法正确的代码，但它不知道你服务器的物理拓扑、不知道哪行隐式拷贝撑爆了显存、也不知道为何缓存命中率只有 10%。懂底层物理机制才能指挥 AI 精准优化并揪出 AI 写的隐形性能 Bug。',
+        },
+      ],
+    },
   ],
 };

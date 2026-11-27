@@ -76,6 +76,7 @@ export default function Lab4Roofline({ preset, presetNonce }) {
   const [stage, setStage] = useState('decode'); // 'decode' | 'prefill'
   const [batch, setBatch] = useState(1); // 1 ~ 256
   const [showCompareGddr, setShowCompareGddr] = useState(false);
+  const [showOpBreakdown, setShowOpBreakdown] = useState(false);
 
   useEffect(() => {
     if (!preset) return;
@@ -99,6 +100,9 @@ export default function Lab4Roofline({ preset, presetNonce }) {
     }
     if (typeof preset.compareGddr === 'boolean') {
       setShowCompareGddr(preset.compareGddr);
+    }
+    if (typeof preset.opBreakdown === 'boolean') {
+      setShowOpBreakdown(preset.opBreakdown);
     }
   }, [preset, presetNonce]);
 
@@ -210,6 +214,15 @@ export default function Lab4Roofline({ preset, presetNonce }) {
                 className="accent-amber-400 rounded"
               />
               <span>叠加参考虚线：GDDR6X (RTX 4090 · 1.0 TB/s) 对比斜坡抬升</span>
+            </label>
+            <label className="inline-flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400 pt-1 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showOpBreakdown}
+                onChange={(e) => setShowOpBreakdown(e.target.checked)}
+                className="accent-sky-400 rounded"
+              />
+              <span>算子拆解模式：叠加 GEMM / FlashAttention / RMSNorm / SiLU 落点</span>
             </label>
           </div>
 
@@ -557,6 +570,42 @@ export default function Lab4Roofline({ preset, presetNonce }) {
                   stroke="#FFFFFF"
                   strokeWidth="2"
                 />
+
+                {/* Optional 3.6 Operator Breakdown Dots */}
+                {showOpBreakdown &&
+                  [
+                    { label: 'SiLU', ai: 1.0, color: '#F59E0B' },
+                    { label: 'RMSNorm', ai: 1.8, color: '#FB7185' },
+                    { label: 'FlashAttn', ai: 96, color: '#38BDF8' },
+                    { label: 'GEMM', ai: 512, color: '#10B981' },
+                  ].map((op) => {
+                    const opY = Math.min(sim.chip.peakTflops, op.ai * sim.chip.bwTBs);
+                    const cx = mapX(op.ai);
+                    const cy = mapY(opY);
+                    return (
+                      <g key={op.label}>
+                        <circle
+                          cx={cx}
+                          cy={cy}
+                          r="5"
+                          fill={op.color}
+                          stroke="#0F172A"
+                          strokeWidth="1.5"
+                        />
+                        <text
+                          x={cx}
+                          y={cy - 9}
+                          textAnchor="middle"
+                          fill={op.color}
+                          fontSize="9.5"
+                          fontFamily="monospace"
+                          fontWeight="bold"
+                        >
+                          {op.label}
+                        </text>
+                      </g>
+                    );
+                  })}
               </svg>
             </div>
 
