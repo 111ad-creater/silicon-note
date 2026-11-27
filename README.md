@@ -49,3 +49,27 @@ npm run preview
 - **新增或修改课程**：编辑 `src/data/curriculum.js`，支持 `heading`、`paragraph`、`callout`（`analogy` / `formula` / `warning` / `tip`）、`table` 与 `flowchart` 块级结构。
 - **新增实测日记**：在 `src/data/benchmarks.js` 中追加对象，配齐 `nvidiaSmiModes` 与 `chartData`。
 - **新增术语词条**：在 `src/data/glossary.js` 的 `GLOSSARY_TERMS` 中添加，包含英文全称、一句话大白话、生活类比与硬件规格。
+
+## 发布与自动部署
+
+线上地址：<https://silicon-note.netlify.app> ｜ 源码仓库：<https://github.com/111ad-creater/silicon-note>
+
+**一键发布**（推荐）：双击桌面「发布站点」快捷方式，或在项目目录运行
+
+```powershell
+.\publish.cmd "这次改了什么"
+```
+
+脚本依次执行：检查改动 → `npm run build` → `git add -A` + `git commit` → `git push`。
+构建失败会自动中止，线上保持上一个正常版本；没有改动时不会产生空提交。
+
+**自动部署**：本地的 `post-commit` 钩子会在每次提交到 `main` 后自动推送，随后 GitHub Actions
+构建并存到 Netlify，约 30 秒线上生效。
+
+```text
+git commit  →  钩子自动 push  →  GitHub Actions 构建  →  Netlify 部署
+```
+
+部署进度：<https://github.com/111ad-creater/silicon-note/actions>
+
+> 钩子文件位于 `.git/hooks/post-commit`，属于本地配置、不进入版本库；想关闭自动推送删掉它即可。
