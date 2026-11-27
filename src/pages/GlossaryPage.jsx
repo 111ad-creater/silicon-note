@@ -1,6 +1,30 @@
-import React, { useState, useMemo } from 'react';
-import { Search, BookMarked, Lightbulb, Cpu, X } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import {
+  Search,
+  BookMarked,
+  Lightbulb,
+  Cpu,
+  X,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
 import { GLOSSARY_TERMS, GLOSSARY_CATEGORIES } from '../data/glossary';
+
+const PAGE_SIZE_OPTIONS = [12, 24, 36];
+
+function getPageNumbers(current, total) {
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+  const pages = [1];
+  if (current > 3) pages.push('ellipsis-left');
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+  for (let p = start; p <= end; p++) pages.push(p);
+  if (current < total - 2) pages.push('ellipsis-right');
+  pages.push(total);
+  return pages;
+}
 
 function escapeRegExp(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -28,6 +52,8 @@ function highlightMatch(text, query) {
 export default function GlossaryPage() {
   const [query, setQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('全部');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(12);
 
   const filteredTerms = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -46,6 +72,26 @@ export default function GlossaryPage() {
       );
     });
   }, [query, activeCategory]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [query, activeCategory, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredTerms.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const startIdx = (safePage - 1) * pageSize;
+  const endIdx = Math.min(startIdx + pageSize, filteredTerms.length);
+  const pagedTerms = useMemo(
+    () => filteredTerms.slice(startIdx, endIdx),
+    [filteredTerms, startIdx, endIdx]
+  );
+
+  const handlePageChange = (page) => {
+    const next = Math.max(1, Math.min(totalPages, page));
+    if (next === safePage) return;
+    setCurrentPage(next);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
     <div className="py-6 sm:py-8 space-y-8">
@@ -104,9 +150,34 @@ export default function GlossaryPage() {
         </div>
       </div>
 
-      {/* Results Count */}
-      <div className="text-xs font-mono text-slate-500 dark:text-slate-400">
-        共找到 {filteredTerms.length} / {GLOSSARY_TERMS.length} 个术语卡片
+      {/* Results Count & Page Size Controls */}
+      <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-mono text-slate-500 dark:text-slate-400">
+        <div>
+          共找到 {filteredTerms.length} / {GLOSSARY_TERMS.length} 个术语卡片
+          {filteredTerms.length > 0 && (
+            <span className="ml-2 text-slate-400 dark:text-slate-500">
+              · 当前显示第 {startIdx + 1}–{endIdx} 条（第 {safePage}/{totalPages} 页）
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <span>每页：</span>
+          {PAGE_SIZE_OPTIONS.map((size) => (
+            <button
+              key={size}
+              type="button"
+              onClick={() => setPageSize(size)}
+              className={`px-2 py-0.5 rounded border transition-colors ${
+                pageSize === size
+                  ? 'bg-sky-500/15 text-sky-600 dark:text-sky-300 border-sky-500/40 font-semibold'
+                  : 'bg-white dark:bg-[#0B1120] border-slate-200 dark:border-slate-800 hover:border-sky-400/50'
+              }`}
+            >
+              {size}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Glossary Card Grid */}
@@ -118,8 +189,9 @@ export default function GlossaryPage() {
           <p className="text-xs text-slate-500">试试搜 HBM、SRAM、KV Cache 或切换分类为“全部”</p>
         </div>
       ) : (
-        <div className="grid md:grid-cols-2 gap-5">
-          {filteredTerms.map((item) => {
+        <>
+          <div className="grid md:grid-cols-2 gap-5">
+            {pagedTerms.map((item) => {
             const isSky = item.badgeColor === 'sky';
             return (
               <div
@@ -170,7 +242,67 @@ export default function GlossaryPage() {
               </div>
             );
           })}
-        </div>
+          </div>
+
+          {/* Pagination Bar */}
+          {totalPages > 1 && (
+            <nav
+              aria-label="术语词典分页导航"
+              className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3"
+            >
+              <span className="text-xs font-mono text-slate-500 dark:text-slate-400">
+                第 {safePage} / {totalPages} 页 · 共 {filteredTerms.length} 个术语
+              </span>
+
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handlePageChange(safePage - 1)}
+                  disabled={safePage <= 1}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B1120] text-slate-700 dark:text-slate-300 hover:border-sky-400/50 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                  <span>上一页</span>
+                </button>
+
+                {getPageNumbers(safePage, totalPages).map((entry, idx) =>
+                  typeof entry === 'string' ? (
+                    <span
+                      key={`${entry}-${idx}`}
+                      className="px-2 py-1 text-xs font-mono text-slate-400"
+                    >
+                      ...
+                    </span>
+                  ) : (
+                    <button
+                      key={entry}
+                      type="button"
+                      onClick={() => handlePageChange(entry)}
+                      aria-current={entry === safePage ? 'page' : undefined}
+                      className={`min-w-[32px] h-8 px-2 rounded-lg text-xs font-mono font-semibold border transition-colors ${
+                        entry === safePage
+                          ? 'bg-sky-500 text-slate-950 border-sky-400'
+                          : 'bg-white dark:bg-[#0B1120] text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-sky-400/50'
+                      }`}
+                    >
+                      {entry}
+                    </button>
+                  )
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => handlePageChange(safePage + 1)}
+                  disabled={safePage >= totalPages}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B1120] text-slate-700 dark:text-slate-300 hover:border-sky-400/50 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                >
+                  <span>下一页</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </nav>
+          )}
+        </>
       )}
     </div>
   );
