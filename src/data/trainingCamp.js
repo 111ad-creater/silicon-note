@@ -1,4 +1,4 @@
-// 工程实战与排障训练营数据：6 大阶梯实战、大厂级评测报告模板、5 大类排障速查手册
+// 工程实战与排障训练营数据：8 大阶梯实战（L0~L4）、大厂级评测报告模板、排障情景与 10 类工具墙
 
 export const BENCHMARK_REPORT_TEMPLATE = `# [模型名] 在 [GPU 型号] 上的推理性能评测与排障分析报告
 
@@ -26,6 +26,39 @@ export const BENCHMARK_REPORT_TEMPLATE = `# [模型名] 在 [GPU 型号] 上的�
 - 在满足 TPOT < 50ms 的 SLO 红线下，单卡 Goodput 有效吞吐甜点区位于并发 32~48；若需进一步压低高并发长尾 P99，建议开启 \`--enable-chunked-prefill\`。`;
 
 export const TRAINING_TASKS = [
+  {
+    id: 'lab-0-nano-gpt',
+    stepNumber: 0,
+    shortName: 'L0 热身',
+    title: '手写极简 GPT，看透逐 Token 生成',
+    tier: 'L0 入门热身',
+    tierKey: 'l0',
+    duration: '3 小时',
+    budget: '¥0（本地 CPU / Colab 可跑）',
+    prerequisites: ['5.1'],
+    resumeOutput: '《手写极简 GPT 自回归算力笔记》',
+    goal: '在动手部署庞大推理引擎前，先亲手跑通一个几百行的极简 GPT 代码，肉眼看清大模型到底是怎么一个 Token 一个 Token 生成答案的，彻底打通“为什么没有 KV Cache 会重复算历史 Attention”的底层直觉。',
+    checklist: [
+      {
+        id: 't0-c1',
+        text: "跟着 Andrej Karpathy《Let's build GPT from scratch》从零跑通一个极简 Transformer 代码",
+      },
+      {
+        id: 't0-c2',
+        text: '在自回归生成循环中打印每一步的输入张量 Shape，亲眼确认“每吐 1 个新字都要重算全部历史 Attention”的算力浪费',
+      },
+      {
+        id: 't0-c3',
+        text: '记录一句架构笔记：如果引入 KV Cache，前向计算里的哪些矩阵乘法可以被直接省掉？',
+      },
+    ],
+    references: [
+      {
+        label: 'Andrej Karpathy 教程（YouTube）',
+        url: 'https://www.youtube.com/watch?v=kCc8FmEb1nY',
+      },
+    ],
+  },
   {
     id: 'lab-1-vllm-oom',
     stepNumber: 1,
@@ -334,6 +367,63 @@ t_triton = bench_event(
 bytes_rw = 2 * x.numel() * x.element_size() / 1e9  # 理论最小读写 GB
 print(f"未融合拆开写: {t_naive:.3f} ms | Triton 融合算子: {t_triton:.3f} ms (提速 {t_naive/t_triton:.2f}x)")
 print(f"Triton 实测有效带宽: {bytes_rw / (t_triton / 1000):.1f} GB/s")`,
+  },
+  {
+    id: 'lab-35-nano-vllm',
+    stepNumber: '3.5',
+    shortName: 'L3.5 进阶',
+    title: '手改 Nano-vLLM & 复现真实工程瓶颈',
+    tier: 'L3.5 硬核进阶',
+    tierKey: 'l35',
+    duration: '1~2 个周末',
+    budget: '约 ¥15（云端单卡）',
+    prerequisites: ['5.2', '5.7'],
+    resumeOutput: '《Nano-vLLM 源码改造与缓存成本复盘》',
+    goal: '跳过百万行工业级源码的阅读门槛，拆解轻量级推理引擎 Nano-vLLM 并动手改一处调度/缓存逻辑；随后仿照一线工程博客（Modal × Sakana AI），用公开长文档复现“前缀缓存复用”对 TTFT、P99 长尾延迟与每百万 Token 成本的量化改善。',
+    checklist: [
+      {
+        id: 't35-c1',
+        text: 'Clone 并跑通 Nano-vLLM 轻量级推理引擎，通读其核心调度器与 KV Block 分配管理代码',
+      },
+      {
+        id: 't35-c2',
+        text: '动手修改一处缓存命中或批处理调度逻辑，用同一套测试集验证功能正常且输出质量无损',
+      },
+      {
+        id: 't35-c3',
+        text: '参考 Modal × Sakana AI 缓存路由复盘思路，用公开长文档构造重复前缀请求，对照测试「关闭 vs 开启 Prefix Caching」的 TTFT、P99 长尾延迟与吞吐变化',
+      },
+      {
+        id: 't35-c4',
+        text: '固定显卡与测试条件，使用 vLLM Benchmark CLI 跑出规范对照表，并换算出每百万 Token 推理成本降幅（例如吞吐提升 +30% 对应单百万 Token 成本降低约 23%）',
+      },
+    ],
+    codeTitle: 'Nano-vLLM 仓库拉取与 vLLM 官方 Benchmark CLI 对照压测命令',
+    codeFilename: 'nano_vllm_bench.sh',
+    language: 'bash',
+    code: `# 1. 拉取轻量级推理引擎学习调度与缓存内核
+git clone https://github.com/GeeeekExplorer/nano-vllm.git
+
+# 2. 使用 vLLM 官方 Benchmark CLI 跑标准化对照压测
+vllm bench serve --model Qwen/Qwen2.5-7B-Instruct --num-prompts 100 --max-concurrency 16 --ignore-eos`,
+    references: [
+      {
+        label: 'Nano-vLLM 仓库（GitHub）',
+        url: 'https://github.com/GeeeekExplorer/nano-vllm',
+      },
+      {
+        label: 'vLLM 官方快速上手文档',
+        url: 'https://docs.vllm.ai/en/stable/getting_started/quickstart.html',
+      },
+      {
+        label: 'vLLM Benchmark CLI 文档',
+        url: 'https://docs.vllm.ai/en/stable/benchmarking/cli.html',
+      },
+      {
+        label: 'Modal × Sakana AI 缓存路由复盘',
+        url: 'https://modal.com/blog/sakana-cache-routing',
+      },
+    ],
   },
   {
     id: 'lab-6-benchmark-portfolio',

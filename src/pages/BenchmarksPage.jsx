@@ -27,6 +27,7 @@ import {
   Copy,
   Bot,
   Stethoscope,
+  ExternalLink,
 } from 'lucide-react';
 import { BENCHMARK_POSTS } from '../data/benchmarks';
 import { CURRICULUM_STAGES } from '../data/curriculum';
@@ -66,6 +67,11 @@ const METRIC_CONFIG = {
 };
 
 const TIER_STYLES = {
+  l0: {
+    badge:
+      'bg-cyan-500/12 text-cyan-700 dark:text-cyan-300 border-cyan-500/30',
+    node: 'border-cyan-500/50 bg-cyan-500/15 text-cyan-600 dark:text-cyan-300',
+  },
   l1: {
     badge:
       'bg-emerald-500/12 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
@@ -79,6 +85,11 @@ const TIER_STYLES = {
     badge:
       'bg-amber-500/12 text-amber-700 dark:text-amber-300 border-amber-500/30',
     node: 'border-amber-500/50 bg-amber-500/15 text-amber-600 dark:text-amber-300',
+  },
+  l35: {
+    badge:
+      'bg-indigo-500/12 text-indigo-700 dark:text-indigo-300 border-indigo-500/30',
+    node: 'border-indigo-500/50 bg-indigo-500/15 text-indigo-600 dark:text-indigo-300',
   },
   l4: {
     badge:
@@ -102,7 +113,7 @@ const SUB_TABS = [
     id: 'roadmap',
     label: '阶梯式工程训练路线',
     shortLabel: '阶梯实战',
-    badge: 'L1~L4 · 6大实战',
+    badge: 'L0~L4 · 8大实战',
     icon: Rocket,
   },
   {
@@ -341,7 +352,7 @@ export default function BenchmarksPage({ onOpenLesson }) {
                 <div className="flex items-center gap-2">
                   <Trophy className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
                   <span className="text-xs font-mono uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                    TRAINING PROGRESS · L1 ~ L4 闯关进度
+                    TRAINING PROGRESS · L0 ~ L4 闯关进度
                   </span>
                 </div>
                 <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">
@@ -383,7 +394,7 @@ export default function BenchmarksPage({ onOpenLesson }) {
             </div>
 
             {/* Quick Ladder Jump Strip */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-1">
+            <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-2 pt-1">
               {TRAINING_TASKS.map((task) => {
                 const doneInTask = task.checklist.filter((c) => checkedItems[c.id]).length;
                 const totalInTask = task.checklist.length;
@@ -591,34 +602,58 @@ export default function BenchmarksPage({ onOpenLesson }) {
                       </div>
                     </div>
 
-                    {/* Collapsible Highlighted Code Block */}
-                    <div className="space-y-2.5">
-                      <CodeBlock
-                        title={task.codeTitle}
-                        filename={task.codeFilename}
-                        language={task.language}
-                        code={task.code}
-                        defaultExpanded={false}
-                        collapsible={true}
-                        copyLabel={task.language === 'markdown' ? '复制模板' : '复制代码'}
-                      />
+                    {/* Collapsible Highlighted Code Block & Official References */}
+                    {(task.code || (task.references && task.references.length > 0)) && (
+                      <div className="space-y-3">
+                        {task.code && (
+                          <CodeBlock
+                            title={task.codeTitle}
+                            filename={task.codeFilename}
+                            language={task.language}
+                            code={task.code}
+                            defaultExpanded={false}
+                            collapsible={true}
+                            copyLabel={task.language === 'markdown' ? '复制模板' : '复制代码'}
+                          />
+                        )}
 
-                      {task.stepNumber === 6 && (
-                        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-                          <span className="text-xs text-slate-500 dark:text-slate-400">
-                            此报告模板已同步挂载至「Tab 2 · 实测与排障日记」顶部快捷入口。
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => setActiveTab('benchmarks')}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/30 hover:bg-sky-500/20 transition-colors"
-                          >
-                            <span>前往 Tab 2 实测日记</span>
-                            <ArrowRight className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                        {task.stepNumber === 6 && (
+                          <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                            <span className="text-xs text-slate-500 dark:text-slate-400">
+                              此报告模板已同步挂载至「Tab 2 · 实测与排障日记」顶部快捷入口。
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setActiveTab('benchmarks')}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/30 hover:bg-sky-500/20 transition-colors"
+                            >
+                              <span>前往 Tab 2 实测日记</span>
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+
+                        {task.references && task.references.length > 0 && (
+                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-mono font-semibold text-slate-500 dark:text-slate-400">
+                              🔗 精选官方参考传送门：
+                            </span>
+                            {task.references.map((ref) => (
+                              <a
+                                key={ref.url}
+                                href={ref.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-100/90 dark:bg-slate-900/80 text-slate-700 dark:text-slate-200 border border-slate-200/90 dark:border-slate-700/80 hover:border-[#38BDF8] hover:text-sky-600 dark:hover:text-[#38BDF8] transition-colors"
+                              >
+                                <ExternalLink className="w-3 h-3 text-sky-500 shrink-0" />
+                                <span>{ref.label}</span>
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </section>
               );
