@@ -5,6 +5,7 @@ import DocsPage from './pages/DocsPage';
 import LabPage from './pages/LabPage';
 import BenchmarksPage from './pages/BenchmarksPage';
 import GlossaryPage from './pages/GlossaryPage';
+import CampusPage from './pages/CampusPage';
 import { CURRICULUM_STAGES } from './data/curriculum';
 import {
   normalizeLabId,
@@ -167,9 +168,11 @@ export default function App() {
         )}
 
         {activePage === 'glossary' && <GlossaryPage />}
+
+        {activePage === 'campus' && <CampusPage />}
       </main>
 
-      <footer className="border-t border-slate-200/80 dark:border-slate-800/80 bg-white/60 dark:bg-[#060A13]/80 py-6 mt-12">
+      <footer className="print:hidden border-t border-slate-200/80 dark:border-slate-800/80 bg-white/60 dark:bg-[#060A13]/80 py-6 mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
           <div className="flex items-center gap-2 font-mono">
             <span className="w-2 h-2 rounded-full bg-emerald-400" />

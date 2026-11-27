@@ -79,3 +79,17 @@ input[type='range'].silicon-slider::-moz-range-thumb {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(56, 189, 248, 0.5);
 }
+
+@media print {
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+
+  body,
+  .bg-tech-grid {
+    background: #ffffff !important;
+    background-image: none !important;
+    color: #0f172a !important;
+  }
+}
