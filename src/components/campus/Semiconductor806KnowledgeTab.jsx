@@ -32,7 +32,6 @@ import Fig5Continuity from './figures806/Fig5Continuity';
 import Fig6PnJunction from './figures806/Fig6PnJunction';
 import Fig7MetalSemi from './figures806/Fig7MetalSemi';
 import Fig8MisStructures from './figures806/Fig8MisStructures';
-import { FigureZoomBox } from './ZoomableFigureModal';
 
 const CHAPTER_FIGURES = {
   fig1: Fig1BandStructure,
@@ -494,9 +493,7 @@ export default function Semiconductor806KnowledgeTab({
                   ⓪ 核心精准物理图谱
                 </h3>
               </div>
-              <FigureZoomBox title={`${currentChapter.shortTitle} · 核心精准物理图谱`} accent="teal">
-                {React.createElement(CHAPTER_FIGURES[currentChapter.figureId])}
-              </FigureZoomBox>
+              {React.createElement(CHAPTER_FIGURES[currentChapter.figureId])}
             </section>
           )}
 

@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import { SEMI_806_EXAMPLES } from '../../data/semiconductor806Examples';
 import Fig5Continuity from './figures806/Fig5Continuity';
-import { FigureZoomBox } from './ZoomableFigureModal';
 
 export default function Semiconductor806ExamplesTab() {
   // Default: open Step 1 of Example 1, collapse others so user can step through or expand all
@@ -179,11 +178,7 @@ export default function Semiconductor806ExamplesTab() {
               </div>
 
               {/* Corresponding Precision Physics Diagram */}
-              {ex.figureMode && (
-                <FigureZoomBox title={`${ex.title} · 物理图解`} accent="teal">
-                  <Fig5Continuity mode={ex.figureMode} />
-                </FigureZoomBox>
-              )}
+              {ex.figureMode && <Fig5Continuity mode={ex.figureMode} />}
 
               {/* Step-by-Step Collapsible Deduction Panels */}
               <div className="space-y-3">
