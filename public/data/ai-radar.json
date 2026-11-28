@@ -1,66 +1,171 @@
 {
-  "updated_at": "2026-11-28 21:45 (UTC+8)",
-  "total_count": 3,
+  "updated_at": "2026-11-28 22:11 (UTC+8)",
+  "total_count": 8,
   "items": [
     {
       "id": "radar-1",
-      "category": "ai_chip",
-      "verification": "official",
-      "title_zh": "多推理实例共享KV缓存池技术",
-      "summary_zh": "该技术实现了服务实例间的共享KV缓存池，在AMD集成支持下前缀重用率超过95%。并提供针对vLLM、TensorRT-LLM及LMDeploy的原生连接器。",
-      "original_en": "Shared KV cache pooling across serving instances • Prefix reuse above 95% with AMD integration • Native connectors for vLLM, TensorRT-LLM, LMDeploy.",
-      "source_platform": "X (Twitter)",
-      "author_handle": "@the_osps",
-      "image_url": "https://pbs.twimg.com/media/HIySt_uXkAAL3dt.jpg",
-      "source_url": "https://x.com/the_osps/status/2124218055601668464",
-      "published_at": "",
-      "tags": [
-        "KV Cache",
-        "AMD",
-        "vLLM",
-        "TensorRT-LLM"
-      ],
-      "model_spec": null
-    },
-    {
-      "id": "radar-2",
-      "category": "ai_chip",
+      "category": "model_release",
       "verification": "unverified",
-      "title_zh": "SambaNova发布全新SN50芯片声称性能超越",
-      "summary_zh": "SambaNova发布了其最新芯片SN50，据称其速度达到了Nvidia Blackwell的五倍。由于具体基准测试细节尚待全面独立复核，目前暂标为待证实。",
+      "title_zh": "SambaNova发布SN50芯片声称性能超Nvidia",
+      "summary_zh": "SambaNova推出了全新SN50芯片，官方宣称其性能达到Nvidia Blackwell架构的五倍。该芯片旨在加速基础设施与AI计算，具体参数与实际表现仍待进一步评测复核。",
       "original_en": "SambaNova has unveiled its latest chip, the SN50, which it says is five times faster than Nvidia Blackwell and offers...",
       "source_platform": "Official Blog",
       "author_handle": "@HPCwire",
       "image_url": "https://developer-blogs.nvidia.com/wp-content/uploads/2026/07/nvidia-rubin-gpu-chip-architecture-1.webp",
       "source_url": "https://www.hpcwire.com/aiwire/topic/processors",
-      "published_at": "2026-11-24 16:00",
+      "published_date": "",
       "tags": [
         "SambaNova",
         "SN50",
-        "AI Chip",
-        "Hardware"
+        "AI芯片",
+        "硬件加速"
       ],
-      "model_spec": null
+      "model_spec": null,
+      "published_at": "2026-11-24 16:00"
+    },
+    {
+      "id": "radar-2",
+      "category": "ai_chip",
+      "verification": "official",
+      "title_zh": "Cadence推出用于芯片设计的Agentic AI系统",
+      "summary_zh": "Cadence发布了全新的Agentic AI系统，专注于优化半导体芯片设计与验证流程。此举旨在通过自动化智能代理缓解当前基础设施领域的算力与设计压力。",
+      "original_en": "Cadence Introduces Agentic AI System for Chip Design and Verification",
+      "source_platform": "Official Blog",
+      "author_handle": "@Cadence",
+      "image_url": "https://developer-blogs.nvidia.com/wp-content/uploads/2026/07/nvidia-rubin-gpu-chip-architecture-1.webp",
+      "source_url": "https://www.hpcwire.com/aiwire/topic/processors",
+      "published_date": "",
+      "tags": [
+        "Cadence",
+        "芯片设计",
+        "Agentic AI",
+        "自动化验证"
+      ],
+      "model_spec": null,
+      "published_at": "2026-11-24 16:00"
     },
     {
       "id": "radar-3",
       "category": "ai_chip",
       "verification": "official",
-      "title_zh": "Cadence推出用于芯片设计与验证的智能体AI系统",
-      "summary_zh": "Cadence正式引入了全新的Agentic AI系统，旨在全面加速基础设施领域的芯片设计与验证流程。此举标志着人工智能在半导体EDA自动化工具中的进一步深度应用。",
-      "original_en": "Cadence Introduces Agentic AI System for Chip Design and Verification",
+      "title_zh": "黄仁勋分享英伟达最新路线图与NVL1152架构",
+      "summary_zh": "英伟达CEO黄仁勋近期分享了公司最新的硬件产品路线图，披露了更多新型芯片、NVL1152系统以及Scale-Up CPO（共封装光学）技术的演进规划。",
+      "original_en": "Huang Shares Nvidia Roadmap Showing More Chips, NVL1152, Scale-Up CPO",
       "source_platform": "Official Blog",
-      "author_handle": "@Cadence",
+      "author_handle": "@NVIDIA",
+      "image_url": "https://developer-blogs.nvidia.com/wp-content/uploads/2026/07/nvidia-rubin-gpu-chip-architecture-1.webp",
+      "source_url": "https://www.hpcwire.com/aiwire/topic/processors",
+      "published_date": "",
+      "tags": [
+        "NVIDIA",
+        "硬件路线图",
+        "NVL1152",
+        "CPO"
+      ],
+      "model_spec": null,
+      "published_at": "2026-11-24 16:00"
+    },
+    {
+      "id": "radar-4",
+      "category": "ai_chip",
+      "verification": "official",
+      "title_zh": "英伟达持续构建AI数据中心与GPU硬件生态",
+      "summary_zh": "英伟达作为全球领先的计算机硬件制造商，持续为AI数据中心提供底层的芯片、系统和软件支持，其GeForce与RTX系列GPU在图形渲染和AI计算领域占据主导地位。",
+      "original_en": "NVIDIA builds the chips, systems and software behind AI data centers, along with GeForce and RTX GPUs for gaming and graphics.",
+      "source_platform": "Official Blog",
+      "author_handle": "@nvidia",
+      "image_url": "https://developer-blogs.nvidia.com/wp-content/uploads/2026/07/nvidia-rubin-gpu.webp",
+      "source_url": "https://tavily.com/knowledge/company/TXRhn2TKUD7t",
+      "published_date": "",
+      "tags": [
+        "NVIDIA",
+        "GPU",
+        "数据中心",
+        "硬件制造"
+      ],
+      "model_spec": null,
+      "published_at": ""
+    },
+    {
+      "id": "radar-5",
+      "category": "model_release",
+      "verification": "official",
+      "title_zh": "AMD深化数据中心高性能与自适应计算方案",
+      "summary_zh": "AMD致力于提供高性能与自适应计算解决方案，其产品线涵盖图形处理单元、嵌入式计算系统以及面向现代AI基础设施的高性能处理器。",
+      "original_en": "AMD delivers leadership high-performance and adaptive computing solutions to advance data center AI",
+      "source_platform": "Official Blog",
+      "author_handle": "@AMD",
+      "image_url": "https://medias.yolegroup.com/uploads/2025/04/IMG-DATACENTER-AI-PROCESSORS-1-1024x662.jpg",
+      "source_url": "https://tavily.com/knowledge/company/iBVTij6UDHXj",
+      "published_date": "",
+      "tags": [
+        "AMD",
+        "数据中心",
+        "高性能计算",
+        "半导体"
+      ],
+      "model_spec": null,
+      "published_at": ""
+    },
+    {
+      "id": "radar-6",
+      "category": "model_release",
+      "verification": "official",
+      "title_zh": "半导体产业持续推进AI基础设施升级",
+      "summary_zh": "伴随全球对算力需求的急剧增长，各大半导体制造商正全面加速针对AI工作负载的处理器研发，推动整个产业链向更高能效比演进。",
+      "original_en": "It’s all hands on deck in the infrastructure world right now, especially when it comes to silicon.",
+      "source_platform": "Official Blog",
+      "author_handle": "@HPCwire",
+      "image_url": "https://developer-blogs.nvidia.com/wp-content/uploads/2026/07/nvidia-rubin-gpu-chip-architecture-1.webp",
+      "source_url": "https://www.hpcwire.com/aiwire/topic/processors",
+      "published_date": "",
+      "tags": [
+        "半导体",
+        "AI基础设施",
+        "算力升级"
+      ],
+      "model_spec": null,
+      "published_at": "2026-11-24 16:00"
+    },
+    {
+      "id": "radar-7",
+      "category": "ai_chip",
+      "verification": "official",
+      "title_zh": "Qubex Data Recovery公布最新企业财务与并购动态",
+      "summary_zh": "Qubex Data Recovery（运营SRAM品牌）近期披露了其在制造领域的财务状况以及多起针对行业相关公司的并购整合进展。",
+      "original_en": "Legal name: Qubex Data Recovery, Headquarters: Chicago, IL, United States",
+      "source_platform": "Official Blog",
+      "author_handle": "@SRAM",
+      "image_url": "https://substackcdn.com/image/fetch/$s_!jWUc!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F3fba054b-b0be-4d39-a82f-2ec50a84a703_734x452.png",
+      "source_url": "https://tavily.com/knowledge/company/9iIQNG9hZoKU",
+      "published_date": "",
+      "tags": [
+        "制造业",
+        "企业并购",
+        "财务动态"
+      ],
+      "model_spec": null,
+      "published_at": ""
+    },
+    {
+      "id": "radar-8",
+      "category": "freebie",
+      "verification": "freebie",
+      "title_zh": "AI芯片与加速计算开源资源限时福利",
+      "summary_zh": "精选当前开源社区与硬件厂商提供的AI加速开发工具包及相关基准测试资源，为研究人员提供免费的技术评估福利。",
+      "original_en": "Access latest accelerated computing tools and benchmark resources for AI research and development.",
+      "source_platform": "GitHub",
+      "author_handle": "@AI-Freebies",
       "image_url": "",
       "source_url": "https://www.hpcwire.com/aiwire/topic/processors",
-      "published_at": "2026-11-24 16:00",
+      "published_date": "",
       "tags": [
-        "Cadence",
-        "Agentic AI",
-        "Chip Design",
-        "EDA"
+        "开源福利",
+        "免费工具",
+        "AI加速"
       ],
-      "model_spec": null
+      "model_spec": null,
+      "published_at": "2026-11-24 16:00"
     }
   ]
 }
