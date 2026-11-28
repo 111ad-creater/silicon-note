@@ -2,7 +2,7 @@ name: Update AI Radar & Engines (Zero Netlify Build)
 
 on:
   schedule:
-    - cron: '0 8 * * *'   # UTC 08:00 = 北京时间每天下午 16:00 自动执行（免 VPN）
+    - cron: '45 7 * * *'   # UTC 08:00 = 北京时间每天下午 16:00 自动执行（免 VPN）
   workflow_dispatch:
 
 permissions:
