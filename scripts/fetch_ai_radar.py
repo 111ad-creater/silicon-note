@@ -21,7 +21,7 @@ SEARCH_QUERIES = [
 ]
 
 
-def post_json(url, payload, extra_headers=None):
+def post_json(url, payload, extra_headers=None, timeout=45):
     data = json.dumps(payload).encode("utf-8")
     headers = {"Content-Type": "application/json"}
     if extra_headers:
@@ -32,7 +32,7 @@ def post_json(url, payload, extra_headers=None):
         headers=headers,
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=45) as resp:
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
 
@@ -56,10 +56,10 @@ def list_gemini_flash_models():
 
 def call_gemini_generate(payload):
     candidates = [
-        "gemini-3.8-flash",
         "gemini-3.7-flash",
         "gemini-3.8-flash-lite",
         "gemini-3.5-flash-lite",
+        "gemini-3.8-flash",
         "gemini-2.5-flash",
     ]
     tried = set()
@@ -74,7 +74,12 @@ def call_gemini_generate(payload):
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent"
             for attempt in range(2):
                 try:
-                    return post_json(url, payload, {"x-goog-api-key": GEMINI_API_KEY})
+                    return post_json(
+                        url,
+                        payload,
+                        {"x-goog-api-key": GEMINI_API_KEY},
+                        timeout=60,
+                    )
                 except urllib.error.HTTPError as e:
                     body = ""
                     try:
@@ -89,6 +94,13 @@ def call_gemini_generate(payload):
                     if e.code in (400, 404, 429, 500, 502, 503, 504):
                         break
                     raise
+                except (TimeoutError, urllib.error.URLError, json.JSONDecodeError) as e:
+                    print(f"[Warn] Gemini model {model_id} (try {attempt + 1}) {type(e).__name__}: {e}")
+                    last_err = e
+                    if attempt == 0:
+                        time.sleep(2)
+                        continue
+                    break
         return None
 
     res = try_models(candidates)
