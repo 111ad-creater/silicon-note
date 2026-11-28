@@ -30,6 +30,11 @@ import { CURRICULUM_STAGES } from '../data/curriculum';
 import LessonLabCard from '../components/LessonLabCard';
 import { LESSON_LAB_WIDGETS } from '../data/labCatalog';
 import { copyTextToClipboard } from '../components/CodeBlock';
+import {
+  upsertWrongQuestion,
+  recordDailyActivity,
+  loadWrongBook,
+} from '../utils/activityStore';
 
 const CALLOUT_STYLES = {
   engineer: {
@@ -129,9 +134,13 @@ function getBlockSearchText(block) {
   return '';
 }
 
-function ExerciseItem({ item }) {
+function ExerciseItem({ item, lessonId }) {
+  const uid = `ai-${lessonId}-ex-${item.index}`;
   const [selectedKey, setSelectedKey] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [starred, setStarred] = useState(() =>
+    loadWrongBook().some((w) => w.uid === uid && w.starred)
+  );
 
   const hasOptions = Array.isArray(item.options) && item.options.length > 0;
   const isAnswered = selectedKey !== null;
@@ -140,6 +149,34 @@ function ExerciseItem({ item }) {
   const handleSelectOption = (optKey) => {
     setSelectedKey(optKey);
     setIsOpen(true);
+    recordDailyActivity(1);
+    if (item.correctKey && optKey !== item.correctKey) {
+      upsertWrongQuestion({
+        uid,
+        lessonId,
+        category: 'AI芯片',
+        question: item.question,
+        options: item.options,
+        correctKey: item.correctKey,
+        answer: item.answer,
+        starred,
+      });
+    }
+  };
+
+  const handleToggleStar = () => {
+    const nextStar = !starred;
+    setStarred(nextStar);
+    upsertWrongQuestion({
+      uid,
+      lessonId,
+      category: 'AI芯片',
+      question: item.question,
+      options: item.options || [],
+      correctKey: item.correctKey || '',
+      answer: item.answer,
+      starred: nextStar,
+    });
   };
 
   return (
@@ -163,10 +200,23 @@ function ExerciseItem({ item }) {
           )}
         </div>
 
-        <button
-          type="button"
-          onClick={() => setIsOpen((v) => !v)}
-          aria-expanded={isOpen}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleToggleStar}
+            title="加入错题本 / 星标收藏"
+            className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-colors ${
+              starred
+                ? 'bg-amber-500/20 border-amber-500/45 text-amber-600 dark:text-amber-300'
+                : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-400 hover:text-amber-500'
+            }`}
+          >
+            <Star className={`w-3.5 h-3.5 ${starred ? 'fill-current' : ''}`} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsOpen((v) => !v)}
+            aria-expanded={isOpen}
           className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
             isOpen
               ? 'bg-amber-500/15 border-amber-500/40 text-amber-800 dark:text-amber-200'
@@ -176,6 +226,7 @@ function ExerciseItem({ item }) {
           <span>{isOpen ? '收起答案与解析' : '查看答案与解析'}</span>
           {isOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
         </button>
+        </div>
       </div>
 
       <p className="text-[14.5px] leading-7 font-medium text-slate-900 dark:text-slate-100">
@@ -275,7 +326,7 @@ function ExerciseGroup({ lessonId, items }) {
 
       <div className="space-y-3.5">
         {items.map((item) => (
-          <ExerciseItem key={`${lessonId}-ex-${item.index}`} item={item} />
+          <ExerciseItem key={`${lessonId}-ex-${item.index}`} item={item} lessonId={lessonId} />
         ))}
       </div>
     </section>

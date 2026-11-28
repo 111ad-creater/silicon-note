@@ -11,6 +11,7 @@ import {
   BookOpen,
   Zap,
   Thermometer,
+  Trophy,
 } from 'lucide-react';
 import { LAB_TABS } from '../data/labCatalog';
 import Lab1KvCache from '../components/labs/Lab1KvCache';
@@ -22,6 +23,7 @@ import Lab6TrainMemory from '../components/labs/Lab6TrainMemory';
 import Lab7NsightTimeline from '../components/labs/Lab7NsightTimeline';
 import Lab8NpuAdapter from '../components/labs/Lab8NpuAdapter';
 import Lab9ArchDvfs from '../components/labs/Lab9ArchDvfs';
+import Lab10ChipLadder from '../components/labs/Lab10ChipLadder';
 
 const LAB_ICONS = {
   lab1: HardDrive,
@@ -33,6 +35,7 @@ const LAB_ICONS = {
   lab7: Clock,
   lab8: Zap,
   lab9: Thermometer,
+  lab10: Trophy,
 };
 
 export default function LabPage({
@@ -51,7 +54,7 @@ export default function LabPage({
         <div className="space-y-1.5">
           <div className="inline-flex items-center gap-2 text-xs font-mono text-emerald-600 dark:text-emerald-400">
             <FlaskConical className="w-4 h-4" />
-            <span>9-IN-1 INTERACTIVE VISUALIZATION LAB · 交互式可视化实验中心</span>
+            <span>10-IN-1 INTERACTIVE VISUALIZATION LAB · 交互式可视化实验与芯片天梯中心</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">
             {currentTab.number} · {currentTab.title}
@@ -82,9 +85,9 @@ export default function LabPage({
         )}
       </div>
 
-      {/* 9-in-1 Horizontal Lab Tab Switcher */}
+      {/* 10-in-1 Horizontal Lab Tab Switcher */}
       <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-[#0B1120]/90 p-2 shadow-sm">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
           {LAB_TABS.map((tab) => {
             const Icon = LAB_ICONS[tab.id] || FlaskConical;
             const isActive = tab.id === currentTab.id;
@@ -154,6 +157,9 @@ export default function LabPage({
         )}
         {currentTab.id === 'lab9' && (
           <Lab9ArchDvfs preset={preset} presetNonce={presetNonce} />
+        )}
+        {currentTab.id === 'lab10' && (
+          <Lab10ChipLadder preset={preset} presetNonce={presetNonce} />
         )}
       </div>
     </div>

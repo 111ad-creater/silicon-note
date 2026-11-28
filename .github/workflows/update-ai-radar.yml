@@ -1,0 +1,33 @@
+name: Update AI Radar & Engines (Zero Netlify Build)
+
+on:
+  schedule:
+    - cron: '0 8 * * *'   # UTC 08:00 = 北京时间每天下午 16:00 自动执行（免 VPN）
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - env:
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python scripts/fetch_ai_radar.py
+          python scripts/fetch_engine_releases.py
+      - name: Commit with [skip netlify] & Purge jsDelivr CDN
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "SiliconNote Bot"
+          git add public/data/ai-radar.json public/data/engine-releases.json
+          git diff --staged --quiet || (git commit -m "chore(data): auto-update 16:00 radar [skip netlify]" && git push)
+          curl -s "https://purge.jsdelivr.net/gh/${GITHUB_REPOSITORY}@main/public/data/ai-radar.json" || true
+          curl -s "https://purge.jsdelivr.net/gh/${GITHUB_REPOSITORY}@main/public/data/engine-releases.json" || true

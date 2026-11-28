@@ -1,0 +1,178 @@
+[
+  {
+    "id": "cloud-gpu-vllm-5rmb",
+    "lab_id": "L1",
+    "created_at": "2026-11-20 14:20",
+    "updated_at": "2026-11-27 19:10",
+    "title": "花 5 块钱体验 AI 芯片性能工程师：云端 GPU 跑 vLLM 压测记录",
+    "subtitle": "只花一杯豆浆的钱租 2 小时 RTX 4090，亲手把原生 PyTorch 推理和 vLLM 压到满载，用监控数据看穿 Prefill 算力爆炸与 Decode 显存墙。",
+    "date": "2026-11-20",
+    "readTime": "8 分钟实测复盘",
+    "cost": "¥ 4.80（租用 2h）",
+    "hardware": "NVIDIA RTX 4090 24GB · CUDA 12.4",
+    "modelTested": "Qwen2.5-7B-Instruct (FP16 · 权重约 14.2 GB)",
+    "tags": ["vLLM", "RTX 4090", "nvidia-smi", "TTFT / TPOT"],
+    "summary": "很多同学学完计算机体系结构，总觉得带宽、算术强度、Batching 很抽象。今天我们直接花 5 块钱在云端算力平台开一台单卡 RTX 4090，分别用原生 HuggingFace Transformers 与 vLLM 引擎打入 1~32 路并发请求，现场抓包对比显存碎片、GPU 利用率与延迟曲线。",
+    "nvidiaSmiModes": {
+      "idle": {
+        "label": "空闲待机 (模型刚加载完)",
+        "gpuName": "NVIDIA GeForce RTX 4090",
+        "driver": "550.90.07",
+        "cuda": "12.4",
+        "fan": "30%",
+        "temp": "41C",
+        "perf": "P8",
+        "power": "26W / 450W",
+        "memUsed": "14620MiB",
+        "memTotal": "24564MiB",
+        "memPct": 59.5,
+        "gpuUtil": "0%",
+        "utilNum": 0,
+        "processName": "python3 -m vllm.entrypoints.openai.api_server",
+        "note": "权重常驻显存占去 14.2 GB，其余近 10 GB 空着等 KV Cache；此时没请求，功耗和利用率几乎贴地。"
+      },
+      "hf_naive": {
+        "label": "原生 HF 串行/静态批 (16并发)",
+        "gpuName": "NVIDIA GeForce RTX 4090",
+        "driver": "550.90.07",
+        "cuda": "12.4",
+        "fan": "52%",
+        "temp": "61C",
+        "perf": "P0",
+        "power": "215W / 450W",
+        "memUsed": "23980MiB",
+        "memTotal": "24564MiB",
+        "memPct": 97.6,
+        "gpuUtil": "38%",
+        "utilNum": 38,
+        "processName": "python3 benchmark_hf_transformers.py --bs 16",
+        "note": "警报！显存已被静态 Padding 吃掉 97.6%（随时 OOM），但 GPU 计算利用率却只有 38%——因为大量的内存搬运和等待短句对齐的“气泡”把大脑憋坏了！"
+      },
+      "vllm_burst": {
+        "label": "vLLM Continuous Batching (32并发)",
+        "gpuName": "NVIDIA GeForce RTX 4090",
+        "driver": "550.90.07",
+        "cuda": "12.4",
+        "fan": "74%",
+        "temp": "73C",
+        "perf": "P0",
+        "power": "398W / 450W",
+        "memUsed": "22140MiB",
+        "memTotal": "24564MiB",
+        "memPct": 90.1,
+        "gpuUtil": "94%",
+        "utilNum": 94,
+        "processName": "python3 -m vllm.entrypoints.openai.api_server",
+        "note": "教科书级的健康压测态：PagedAttention 把 32 路并发整齐塞进 22.1 GB，Continuous Batching 让 GPU 利用率顶到 94%，功率跑上 398W，算力彻底吃饱！"
+      }
+    },
+    "chartData": [
+      { "concurrency": "1 并发", "hfTtft": 145, "vllmTtft": 132, "hfTpot": 18, "vllmTpot": 16, "hfTps": 55, "vllmTps": 62 },
+      { "concurrency": "4 并发", "hfTtft": 420, "vllmTtft": 195, "hfTpot": 46, "vllmTpot": 21, "hfTps": 86, "vllmTps": 190 },
+      { "concurrency": "16 并发", "hfTtft": 1890, "vllmTtft": 340, "hfTpot": 138, "vllmTpot": 29, "hfTps": 115, "vllmTps": 551 },
+      { "concurrency": "32 并发", "hfTtft": 4650, "vllmTtft": 610, "hfTpot": 280, "vllmTpot": 38, "hfTps": 114, "vllmTps": 842 }
+    ],
+    "takeaways": [
+      {
+        "title": "1. 为什么 1 并发时两者几乎打平？",
+        "detail": "当只有 1 个用户提问时，不存在调度排队和显存碎片争抢，RTX 4090 的 1008 GB/s GDDR6X 带宽全部服务这 1 个请求（每次 Decode 搬一遍 14.2 GB 权重约 14ms），所以单用户 TPOT 都在 16~18ms 左右（约 55~62 tok/s）。"
+      },
+      {
+        "title": "2. 16 并发后，原生 HF 为何“假死”？",
+        "detail": "原生 PyTorch 必须等一组 Batch 里最长那条回答写完，才能释放整批显存，短回答只能在旁边干等；同时静态预分配大块连续显存导致空间严重浪费。结果 16 并发后总吞吐停滞在 115 tok/s，平均每个用户每秒只能看到 7 个字！"
+      },
+      {
+        "title": "3. vLLM 靠什么把总吞吐拉高 7.3 倍？",
+        "detail": "一方面 PagedAttention 用 16-token 便利贴把显存利用率榨干，塞进了 32 个并发；另一方面 Continuous Batching 让先写完的请求立刻退场、新请求无缝插队，单次权重搬运（14.2 GB）被 32 个用户均摊，算术强度飙升，总吞吐直接冲上 842 tok/s！"
+      }
+    ]
+  },
+  {
+    "id": "nano-vllm-prefix-cache-l35",
+    "lab_id": "L3.5",
+    "created_at": "2026-11-26 20:15",
+    "updated_at": "2026-11-27 21:30",
+    "title": "L3.5 实测：Nano-vLLM 调度改造与长前缀缓存 TTFT/成本复盘",
+    "subtitle": "在单卡 RTX 4090 上构造 4K 公共文档前缀压测，实测开启 Prefix Caching 后 TTFT P99 暴降 84%，折算单百万 Token 成本同步下探。",
+    "date": "2026-11-26",
+    "readTime": "6 分钟源码与压测",
+    "cost": "¥ 6.50（云端单卡）",
+    "hardware": "NVIDIA RTX 4090 24GB · CUDA 12.4",
+    "modelTested": "Qwen2.5-7B-Instruct-AWQ (INT4 · 权重约 4.2 GB)",
+    "tags": ["Nano-vLLM", "Prefix Caching", "P99 TTFT", "成本折算"],
+    "summary": "参照 Modal × Sakana AI 的缓存路由复盘思路，在 Nano-vLLM 中核对 BlockManager 前缀哈希复用路径，并在 vLLM Benchmark CLI 下固定 4096 共享长前缀 + 16 并发测试，定量对比关闭与开启 Prefix Caching 的 TTFT P99、Goodput 与百万 Token 成本。",
+    "nvidiaSmiModes": {
+      "idle": {
+        "label": "AWQ 加载待机",
+        "gpuName": "NVIDIA GeForce RTX 4090",
+        "driver": "550.90.07",
+        "cuda": "12.4",
+        "fan": "30%",
+        "temp": "39C",
+        "perf": "P8",
+        "power": "24W / 450W",
+        "memUsed": "5120MiB",
+        "memTotal": "24564MiB",
+        "memPct": 20.8,
+        "gpuUtil": "0%",
+        "utilNum": 0,
+        "processName": "python3 -m vllm.entrypoints.openai.api_server --quantization awq",
+        "note": "INT4 AWQ 权重仅占 ~4.2GB，留出近 19GB 高裕度空间专门存放共享前缀 KV Block。"
+      },
+      "hf_naive": {
+        "label": "关闭 Prefix Caching (重复算 Prefill)",
+        "gpuName": "NVIDIA GeForce RTX 4090",
+        "driver": "550.90.07",
+        "cuda": "12.4",
+        "fan": "78%",
+        "temp": "74C",
+        "perf": "P0",
+        "power": "412W / 450W",
+        "memUsed": "18400MiB",
+        "memTotal": "24564MiB",
+        "memPct": 74.9,
+        "gpuUtil": "98%",
+        "utilNum": 98,
+        "processName": "vllm bench serve --max-concurrency 16 (no-prefix-cache)",
+        "note": "每次请求都在重复计算 4096 Token 公共前文，P99 TTFT 飙升至 1,420ms，Decode 用户被严重阻塞。"
+      },
+      "vllm_burst": {
+        "label": "开启 Prefix Caching (命中复用)",
+        "gpuName": "NVIDIA GeForce RTX 4090",
+        "driver": "550.90.07",
+        "cuda": "12.4",
+        "fan": "64%",
+        "temp": "66C",
+        "perf": "P0",
+        "power": "345W / 450W",
+        "memUsed": "13200MiB",
+        "memTotal": "24564MiB",
+        "memPct": 53.7,
+        "gpuUtil": "89%",
+        "utilNum": 89,
+        "processName": "vllm serve --enable-prefix-caching",
+        "note": "公共前缀 KV Block 命中率 >92%，重复 Prefill 计算直接归零，TTFT P99 骤降至 218ms（降幅 84.6%），系统有效吞吐提升 +34%！"
+      }
+    },
+    "chartData": [
+      { "concurrency": "1 并发", "hfTtft": 310, "vllmTtft": 58, "hfTpot": 9, "vllmTpot": 8, "hfTps": 110, "vllmTps": 125 },
+      { "concurrency": "4 并发", "hfTtft": 680, "vllmTtft": 105, "hfTpot": 15, "vllmTpot": 12, "hfTps": 265, "vllmTps": 332 },
+      { "concurrency": "16 并发", "hfTtft": 1420, "vllmTtft": 218, "hfTpot": 34, "vllmTpot": 19, "hfTps": 470, "vllmTps": 840 },
+      { "concurrency": "32 并发", "hfTtft": 2890, "vllmTtft": 395, "hfTpot": 61, "vllmTpot": 28, "hfTps": 524, "vllmTps": 1140 }
+    ],
+    "takeaways": [
+      {
+        "title": "1. 前缀命中如何消除 Prefill 排队毛刺？",
+        "detail": "当 16 并发请求共享 4K System Prompt 时，未开缓存需算 16×4K=64K 个 Token 的 Prefill；开启后仅第 1 个请求算 4K，其余 15 个直接复用哈希命中的 KV Block，TTFT P99 从 1,420ms 暴跌至 218ms。"
+      },
+      {
+        "title": "2. 从吞吐提升直接换算商业成本降幅",
+        "detail": "在 RTX 4090 ($0.35/h) 16 并发下，有效输出吞吐从 470 tok/s 提升至 840 tok/s（+78.7%），每百万 Token 推理硬件成本直接下降约 44%。"
+      },
+      {
+        "title": "3. Nano-vLLM 源码改造启发",
+        "detail": "在 Nano-vLLM 的 BlockManager 中为 KV Block 增加内容哈希前缀表后，代码仅增加不足 80 行即实现近似生产级 Prefix Caching；但在多机集群下需警惕跨节点拉取外部 KV 带来的 Storage I/O 墙。"
+      }
+    ]
+  }
+]

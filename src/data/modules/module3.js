@@ -17,7 +17,7 @@ export const module3 = {
         { type: 'heading', text: '核心直觉' },
         {
           type: 'paragraph',
-          text: '计算机里没有真正连续的小数，它用科学计数法来存数字，把一串 0 和 1 切成三段：1 位“正负号（Sign）”决定方向，几位的“指数（Exponent）”决定能表示的数字有多大或多小（动态范围），剩下的“尾数（Mantissa）”决定小数点后能精确到几位（精度）。',
+          text: '计算机里没有真正连续的小数，工业界普遍采用 IEEE 754（Sign / Exponent / Mantissa）科学计数法标准存储浮点数，把一串比特切为三段：1 位符号位（Sign）决定正负方向，指数位（Exponent）决定数值上下限跨度（动态范围），尾数位（Mantissa）决定小数刻度精细度（分辨率）；若数值超出指数表征上限就会 Overflow（上溢成 Inf/NaN），小于最小非规格化下限则会 Underflow（下溢归零）。',
         },
         { type: 'heading', text: '底层机制拆解' },
         {
@@ -53,7 +53,7 @@ export const module3 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '理解“指数管范围、尾数管精度”是看懂所有 AI 低精度格式的钥匙。神经网络天生对轻微的舍入噪声不敏感（尾数可以很短），但极其害怕数值溢出变成 NaN（指数不能太短）。',
+            '理解 IEEE 754（Sign / Exponent / Mantissa）与 Dynamic Range vs Precision（动态范围与精度权衡）是看懂所有 AI 低精度格式的钥匙。神经网络天生对轻微的舍入噪声不敏感（尾数可以很短），但极其害怕 Overflow / Underflow（上下溢）导致梯度归零或变成 NaN（指数位不能太短）。\n核心工程表达：AI 数值格式设计的核心是平衡 Dynamic Range vs Precision（动态范围与精度），优先保证指数位宽度以规避训练/推理中的 Overflow / Underflow（上下溢）。',
         },
         {
           type: 'quiz',
@@ -113,7 +113,7 @@ export const module3 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '看到厂商宣传“单卡 10,000 TFLOPS”时，性能工程师的第一反应必须是问：“这是什么精度下的？稠密还是 2:4 稀疏？”同样一块芯片，FP4 稀疏算力可以是 FP32 算力的几十倍，不标明精度谈算力纯属耍流氓。',
+            '看到厂商宣传“单卡 10,000 TFLOPS”时，性能工程师的第一反应必须是追问：“这是 FP16、BF16 还是 FP8 (E4M3/E5M2) / MXFP4 精度下的？稠密还是 2:4 稀疏？”同样一块芯片，MXFP4 稀疏算力可以是 FP32 算力的几十倍，不标明精度、量化粒度（Block Scaling）与稀疏性谈算力纯属耍流氓。\n核心工程表达：硬件峰值算力评估必须显式绑定数值格式（BF16 / FP8 E4M3/E5M2 / MXFP4）及稀疏比，低比特演进通过压缩字节宽度同步实现算力翻倍与带宽减半。',
         },
         {
           type: 'quiz',
@@ -135,7 +135,7 @@ export const module3 = {
         { type: 'heading', text: '核心直觉' },
         {
           type: 'paragraph',
-          text: '量化就是把本来用高精度（BF16，16 位）存的数字，按比例映射到低精度整数格子（如 INT8 或 INT4）里。最大难题叫“离群值（Outliers）灾难”：如果班里 99 个同学身高都在 1.6~1.8 米，唯独混进一个 10 米高的巨人，为了把巨人也塞进尺子里，剩下 99 个人全被挤在 0 和 1 两个刻度里，完全分不清谁是谁了。',
+          text: '量化就是把本来用高精度（BF16，16 位）存的数字，按比例映射到低精度整数或微浮点格子（如 W4A16、INT8 或 FP8）里。最大拦路虎叫 Activation Outliers（激活离群值）灾难：如果 99% 通道数值都在 1.6~1.8 区间，唯独几个通道混进 100 倍幅度的巨人，统一量化缩放因子会把正常数值全挤爆到 0 和 1 两个刻度里，瞬间毁掉模型精度。',
         },
         { type: 'heading', text: '底层机制拆解' },
         {
@@ -171,7 +171,7 @@ export const module3 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '量化不是“位数越低就一定越快”。如果在不支持原生 INT4 Tensor Core 的老卡上跑 W4A16，现场解压（Dequantize）本身会消耗额外算力：在低并发（Decode 带宽受限）时它能大幅提速，但在高并发（Prefill 算力受限）时反而可能因为解压开销变慢！',
+            '量化不是“位数越低就一定越快”。在仅靠 W4A16 压榨权重的场景中，如果老卡缺乏原生 INT4 Tensor Core，现场反量化（Dequantize）成 FP16 会消耗额外指令周期：低并发 Decode（Memory-Bound）时它能靠减少 HBM 搬运大幅提速，但在大 Batch Prefill（Compute-Bound）时反而可能因为解压开销拖慢速度；新一代卡片上原生 FP8 (E4M3/E5M2) / MXFP4 则能兼顾 Activation Outliers（激活离群值）保护与硬件直算。\n核心工程表达：量化收益取决于硬件原生指令支持与瓶颈归属——W4A16 拯救 Memory-Bound 的低并发 Decode，而 FP8 / MXFP4 原生计算兼顾高吞吐 Prefill 与 Activation Outliers 稳定性。',
         },
         {
           type: 'quiz',
@@ -228,7 +228,7 @@ export const module3 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '注意一个残酷趋势：近十年 GPU 算力暴涨了几十倍，但 HBM 带宽只涨了几倍，导致芯片的“拐点”越来越高（从几十涨到几百）。这意味着大模型越来越容易掉进 Memory-Bound 的斜坡里，把 Batch 做大、把访存省下来变得空前重要。',
+            '注意一个残酷趋势：近十年 GPU 算力暴涨了几十倍，但 HBM 带宽只涨了几倍，导致芯片的 Ridge Point（硬件拐点 = 峰值算力 / 显存带宽）被拉得越来越高（从几十涨到几百 FLOPs/Byte）。这意味着绝大多数算子更容易掉进 Memory-Bound 斜坡区，必须靠升高 Arithmetic Intensity（算术强度，增大 Batch 或做算子融合）跨过 Ridge Point 进入 Compute-Bound 平顶区。\n核心工程表达：Roofline 分析的核心是将算子的 Arithmetic Intensity（算术强度）与芯片 Ridge Point（硬件拐点）比对，明确归属于 Compute-Bound vs Memory-Bound 再对症调优。',
         },
         {
           type: 'quiz',
@@ -287,7 +287,7 @@ export const module3 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '以后拿到任何一份性能测试报告，先用这四条黄金公式在心里花 30 秒算出“物理理论天花板”。如果同事兴奋地汇报说“我们把 70B 模型在双卡 H100 上优化到了每秒 10 个字”，你一算天花板是 48 个字，立刻就能判断：这里面肯定还有巨大的优化空间或严重 Bug！',
+            '以后拿到任何一份性能测试报告，先用这四条黄金公式在心里花 30 秒算出 Compute-Bound vs Memory-Bound 边界与“物理理论天花板”。如果同事兴奋地汇报说“我们把 70B 模型在双卡 H100 上优化到了每秒 10 个字”，你一算带宽封顶天花板是 48 个字，立刻就能判断：这里面肯定还有巨大的优化空间或严重 Bug！\n核心工程表达：Back-of-the-Envelope Estimation（纸面算账）基于存储容量与算力/带宽 Roofline 上界，30 秒内量化定位实测性能与物理理论极限的差距。',
         },
         {
           type: 'quiz',
@@ -347,7 +347,7 @@ export const module3 = {
           title: '3 行代码出专业算子耗时报告',
           copyText: `with torch.profiler.profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as prof:\n    out = model(x)\nprof.export_chrome_trace('trace.json')`,
           content:
-            '导出 `trace.json` 后直接拖进 `https://ui.perfetto.dev` 查看时间轴耗时；静态 ONNX 模型结构直接拖进 `https://netron.app` 排查节点形状：\n`with torch.profiler.profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as prof:`\n`    out = model(x)`\n`prof.export_chrome_trace(\'trace.json\')`',
+            '导出 `trace.json` 后直接拖进 `https://ui.perfetto.dev` 查看时间轴耗时（一眼分辨算子属于 Compute-Bound vs Memory-Bound）；静态 ONNX 模型结构直接拖进 `https://netron.app` 排查节点形状：\n`with torch.profiler.profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA]) as prof:`\n`    out = model(x)`\n`prof.export_chrome_trace(\'trace.json\')`\n核心工程表达：借助 PyTorch Profiler Trace 与 Netron 算子拓扑排查，在真实时间轴上定量区分 Tensor Core 算力瓶颈与 Elementwise 访存/发射气泡。',
         },
         {
           type: 'quiz',

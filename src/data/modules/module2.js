@@ -17,7 +17,7 @@ export const module2 = {
         { type: 'heading', text: '核心直觉' },
         {
           type: 'paragraph',
-          text: '把芯片算题比作你在图书馆写论文：寄存器（Register）是攥在手心里的笔和草稿纸条，一毫秒就能看到，但只能记几个字；Shared Memory（片上 SRAM）是面前的书桌，几秒就能翻到，能摊开几本书；L2 Cache 是走廊里的公共小书架；而 HBM 显存是楼下巨大的书库，容量大但跑一趟耗时几百倍。',
+          text: '把芯片算题比作你在图书馆写论文：GPU 的 Memory Hierarchy（存储层次）从快到慢依次铺开——Register File（寄存器堆）是攥在手心里的草稿纸条，1 个时钟周期就能拿到，但容量最小；Shared Memory (SRAM)（片上共享内存）是面前可控的书桌，几十个周期就能摊开复用；L2 Cache 是走廊里的公共小书架；而 HBM 显存是楼下巨大的书库，容量大但跑一趟耗时几百个周期。',
         },
         { type: 'heading', text: '底层机制拆解' },
         {
@@ -54,7 +54,7 @@ export const module2 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '几乎所有顶级 GPU 算子优化（比如 FlashAttention、手写 GEMM）的唯一秘诀，就是把数据从楼下大书库（HBM）搬到书桌（Shared Memory）后，在书桌上反复算透、榨干价值再写回去，同时小心翼翼地避开 Bank Conflict。',
+            '几乎所有顶级 GPU 算子优化（比如 FlashAttention、手写 GEMM）的唯一秘诀，就是先在全局显存层面做好 Coalesced Memory Access（合并访存，让同一 Warp 的 32 个线程读取连续地址、一次 Memory Transaction 拉满带宽），再把数据搬进 Shared Memory (SRAM) 书桌和 Register File 里反复复用算透；同时通过 Padding 或 Swizzle 小心避开 Bank Conflict（存储体冲突，多线程撞到同一个 SRAM Bank 导致串行排队）。\n核心工程表达：高性能算子优化依赖沿 Memory Hierarchy（存储层次）的片上复用，外层靠 Coalesced Memory Access（合并访存）吃满总线，内层用 Swizzle 消除 Bank Conflict（存储体冲突）。',
         },
         {
           type: 'quiz',
@@ -113,7 +113,7 @@ export const module2 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '看一款 AI 芯片是不是真“旗舰”，别光听发布会吹多少 PFLOPS 的稀疏算力，先看它配了几颗 HBM、总显存带宽是多少 TB/s。在大模型推理时代，HBM 的容量和带宽几乎直接决定了这块卡的商业定价权。',
+            '看一款 AI 芯片是不是真“旗舰”，别光听发布会吹多少 PFLOPS 的稀疏算力，先看它配了几颗 HBM / 3D TSV 垂直堆叠 DRAM 堆栈、总显存带宽是多少 TB/s。在大模型推理时代，HBM 的容量、位宽和封装良率几乎直接决定了这块卡的商业定价权。\n核心工程表达：HBM / 3D TSV 通过超高位宽垂直堆叠突破传统平面 GDDR 引脚与功耗限制，直接决定大模型推理的 Memory Bandwidth（显存带宽）上限。',
         },
         {
           type: 'quiz',
@@ -171,7 +171,7 @@ export const module2 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '过去大家觉得“封测”是芯片产业链里技术含量最低的环节；但到了 AI 芯片时代，以 CoWoS 为代表的先进封装反倒成了全行业最卡脖子的产能核心——哪怕台积电 3nm 晶圆造出来了，排不上 CoWoS 封装依然交不出货。',
+            '当单颗裸片逼近光刻机的 Reticle Limit（光罩极限，约 858 mm²）时，良率与成本会瞬间雪崩。于是业界转向 Chiplet / UCIe 标准化芯粒拼接架构，把计算 Die 与 HBM 共同安放在布满微米级走线的 Silicon Interposer（硅中介层）上，通过台积电 CoWoS 等 2.5D 先进封装互联成一颗超大系统级芯片。因此，CoWoS 产能往往比前道 3nm 晶圆更卡脖子。\n核心工程表达：突破 Reticle Limit（光罩极限）依赖 Chiplet / UCIe 解耦与 Silicon Interposer（硅中介层）+ CoWoS 先进封装，封装互连密度决定系统扩展性。',
         },
         {
           type: 'quiz',
@@ -228,7 +228,7 @@ export const module2 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '任何前沿硬件落地都要过“软硬件生态”和“量产成本”两道鬼门关。比如模拟存算一体虽然能效极高，但容易受温度噪声影响掉精度，且编译器极难适配；因此工程界往往先从稳妥的“数字近存计算（如在 HBM4 Base Die 里加逻辑）”切入。',
+            '任何前沿硬件落地都要过“软硬件生态”和“量产成本”两道鬼门关：例如面向跨节点池化的 CXL / CPO（Compute Express Link 内存池化与 Co-Packaged Optics 光电共封装）正分别重塑容量扩展与机柜级互连能耗；而模拟存算一体虽能效极高，却易受温漂噪声掉精度且编译器难适配，工程界更倾向先从“数字近存计算（在 HBM4 Base Die 集成逻辑）”稳妥切入。\n核心工程表达：突破内存与互连墙的演进路径正沿着 PIM/CIM 近存计算与 CXL / CPO 内存池化及光电共封装两条主线推进。',
         },
         {
           type: 'quiz',
@@ -286,7 +286,7 @@ export const module2 = {
           variant: 'engineer',
           title: '避坑与面试视角',
           content:
-            '微电子/集成电路硕士去存储大厂做 AI 存储开发自带专业护城河。面试时注意确认细分方向：优先选「硬件-算法联合仿真平台（Co-Simulation）」和「性能/功耗测试评估」，避开纯做「封装机械应力与多物理场热仿真（ANSYS/COMSOL）」的力学分支。',
+            '微电子/集成电路硕士去存储大厂做 AI 存储开发自带专业护城河。面试时注意确认细分方向：优先选「硬件-算法联合仿真平台（Co-Simulation）」和「性能/功耗测试评估」，避开纯做「封装机械应力与多物理场热仿真（ANSYS/COMSOL）」的力学分支。\n核心工程表达：3D IC 与存算系统评估需借助硬件-算法 Co-Simulation（联合仿真），在体系结构层面权衡存储密度、互连能耗与 Thermal Hotspot（热热点）。',
         },
         {
           type: 'quiz',

@@ -58,7 +58,7 @@ export const module4 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '很多时候大家说“某款国产芯片硬件参数追上英伟达了，但实际跑大模型慢一半”，问题 80% 出在中间的“编译器 + 算子库”两层——硬件肌肉很壮，但翻译官没把动作编排好，导致芯片大量空转。',
+            '很多时候大家说“某款芯片硬件参数追上主流方案了，但实际跑大模型慢一半”，问题 80% 出在中间的“编译器 + 底层算子/通信库（cuBLAS / cuDNN / NCCL）与 PTX / SASS 指令降级链路”上——硬件肌肉很壮，但翻译官没把动作编排好，导致芯片大量空转。\n核心工程表达：AI 栈打通是从框架计算图经由 cuBLAS / cuDNN / NCCL 算子通信库，最终通过 PTX / SASS 虚拟与原生机器指令驱动硬件的全链路降级（Lowering）。',
         },
         {
           type: 'quiz',
@@ -116,7 +116,7 @@ export const module4 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '对于偏向 AI 芯片性能分析与系统方向的工程师来说，你完全不需要成为从零手写几千行 CUDA 汇编的大神，但一定要看懂 Grid/Block/Thread 的映射逻辑，并学会用 Triton（配合 AI 辅助）快速验证自己的算子优化猜想。',
+            '对于偏向 AI 芯片性能分析与系统方向的工程师来说，你完全不需要成为从零手写几千行 CUDA 汇编的大神，但一定要吃透 Grid / Block / Thread（网格/线程块/线程）的硬件映射逻辑，并学会用 Tile-level DSL (Triton / TileLang) 在片上 SRAM 分块层面快速实现定制融合算子与验证优化猜想。\n核心工程表达：CUDA 以 Grid / Block / Thread 管理细粒度并行映射，而 Tile-level DSL (Triton / TileLang) 将编程抽象提升至片上 Block/Tile 粒度并自动编排访存与向量化。',
         },
         {
           type: 'quiz',
@@ -173,7 +173,7 @@ export const module4 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '打开 Nsight Systems 时间轴排障时，如果你看到屏幕上密密麻麻排满了成千上万根极细的“小针”（几微秒的小 Kernel），且每根针之间还有空白缝隙，这就是典型的“缺乏算子融合 + Kernel Launch 瓶颈”。开启 `torch.compile` 或换用融合算子往往立竿见影。',
+            '打开 Nsight Systems 时间轴排障时，如果你看到屏幕上密密麻麻排满了成千上万根极细的“小针”（几微秒的小 Kernel），且每根针之间还有空白缝隙，这就是典型的“缺乏 Operator Fusion（算子融合）+ Kernel Launch Overhead（内核发射开销）瓶颈”。开启 `torch.compile` 或换用融合算子往往立竿见影。\n核心工程表达：Operator Fusion（算子融合）将多次 HBM 中间张量读写收敛至单次寄存器/SRAM 生命周期内，同步削减 Kernel Launch Overhead（内核发射开销）。',
         },
         {
           type: 'quiz',
@@ -232,7 +232,7 @@ export const module4 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '在大模型推理服务上线前，如果开启了图编译或 CUDA Graph，一定要做“预热（Warmup）”和固定分桶（Bucketing，比如把输入长度对齐到 128/256/512 等固定档位）。否则线上每来一个奇葩长度的请求就触发一次重新编译，延迟会瞬间飙升几秒钟！',
+            '无论是基于 TorchInductor 的 JIT Compilation（即时编译），还是静态图底座 XLA / MLIR，大模型推理服务上线前只要开启了图编译或 CUDA Graph（图下沉），就必须做好“预热（Warmup）”与 Shape Bucketing（分桶对齐 128/256/512）。否则线上每来一个未见过长度的请求就重新触发 JIT Compilation，首字延迟会瞬间飙升数秒！\n核心工程表达：基于 XLA / MLIR 的图优化与 JIT Compilation 消除动态调度碎片，配合 CUDA Graph（图下沉）与 Shape Bucketing 把发射开销降至近零。',
         },
         {
           type: 'quiz',
@@ -291,7 +291,7 @@ export const module4 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '打破 CUDA 垄断并非不可能，现在的破局点正是“上层抽象统一（如 PyTorch + Triton + vLLM/SGLang 标准化接口）+ 开源生态共建”。这也正是未来国内极度稀缺“懂芯片底层 + 懂 AI 推理系统排障”的跨界性能工程师的根本原因。',
+            '打破 CUDA 垄断并非不可能，现在的破局点正是“上层抽象统一（PyTorch + Tile-level DSL (Triton / TileLang) + vLLM/SGLang 标准化接口）+ 高性能通信库（NCCL 对标替换）+ 开源生态共建”。这也正是国内极度稀缺“懂芯片底层 + 懂 AI 推理系统排障”跨界性能工程师的根本原因。\n核心工程表达：算力软件栈护城河在于 cuBLAS / cuDNN / NCCL 库性能密度与 Nsight 可观测生态，破局依赖 Triton / MLIR 等开放中间抽象层。',
         },
         {
           type: 'quiz',
@@ -352,7 +352,7 @@ export const module4 = {
           copyText:
             '我正在把 vLLM / ONNX 模型适配到一款异构 NPU 芯片，下面这段 Profiler 日志显示 Attention 后的 RMSNorm 耗时异常且触发了 CPU 同步。请帮我定位 3 个最可能的 Operator Fallback 或驱动下发原因，并给出用 Python 最小复现脚本验证的步骤。',
           content:
-            '指挥 AI 排障 Prompt：「我正在把 vLLM / ONNX 模型适配到一款异构 NPU 芯片，下面这段 Profiler 日志显示 Attention 后的 RMSNorm 耗时异常且触发了 CPU 同步。请帮我定位 3 个最可能的 Operator Fallback 或驱动下发原因，并给出用 Python 最小复现脚本验证的步骤。」',
+            '指挥 AI 排障 Prompt：「我正在把 vLLM / ONNX 模型适配到一款异构 NPU 芯片，下面这段 Profiler 日志显示 Attention 后的 RMSNorm 耗时异常且触发了 CPU 同步。请帮我定位 3 个最可能的 Operator Fallback 或驱动下发原因，并给出用 Python 最小复现脚本验证的步骤。」\n核心工程表达：异构 NPU 适配的核心调优闭环是消减 Operator Fallback（算子回退）、开启 Graph Capture（图下沉）消除 Kernel Launch Overhead，并用 Double Buffering 重叠 DMA 搬运。',
         },
         {
           type: 'quiz',
@@ -413,7 +413,7 @@ export const module4 = {
           copyText:
             '请帮我写一段 Bash + Python 脚本：依次在并发数 [1, 4, 16, 32] 下调用 vllm bench serve，将 TTFT/TPOT/P99 存入 results.csv，并附带 Matplotlib 绘图代码画出吞吐-延迟帕累托曲线，遇到 OOM 自动记录并跳过继续跑下一组。',
           content:
-            '指挥 AI 写自动化压测脚本 Prompt：「请帮我写一段 Bash + Python 脚本：依次在并发数 [1, 4, 16, 32] 下调用 vllm bench serve，将 TTFT/TPOT/P99 存入 results.csv，并附带 Matplotlib 绘图代码画出吞吐-延迟帕累托曲线，遇到 OOM 自动记录并跳过继续跑下一组。」',
+            '指挥 AI 写自动化压测脚本 Prompt：「请帮我写一段 Bash + Python 脚本：依次在并发数 [1, 4, 16, 32] 下调用 vllm bench serve，将 TTFT/TPOT/P99 存入 results.csv，并附带 Matplotlib 绘图代码画出吞吐-延迟帕累托曲线，遇到 OOM 自动记录并跳过继续跑下一组。」\n核心工程表达：系统级性能调优以 Linux Paged Memory、PCIe DMA Pinned Memory（锁页内存）与 NUMA 亲和性为物理底座，并用 `py-spy` 火焰图定位主机侧调度热点。',
         },
         {
           type: 'quiz',

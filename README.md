@@ -54,22 +54,25 @@ npm run preview
 
 线上地址：<https://silicon-note.netlify.app> ｜ 源码仓库：<https://github.com/111ad-creater/silicon-note>
 
-**一键发布**（推荐）：双击桌面「发布站点」快捷方式，或在项目目录运行
+**一键发布**（唯一上线入口）：双击桌面「发布站点」快捷方式，或在项目目录运行
 
 ```powershell
 .\publish.cmd "这次改了什么"
 ```
 
-脚本依次执行：检查改动 → `npm run build` → `git add -A` + `git commit` → `git push`。
+脚本依次执行：统计本月发布次数 → 检查改动 → `npm run build` → `git add -A` + `git commit` → `git push`。
 构建失败会自动中止，线上保持上一个正常版本；没有改动时不会产生空提交。
 
-**自动部署**：本地的 `post-commit` 钩子会在每次提交到 `main` 后自动推送，随后 GitHub Actions
-构建并存到 Netlify，约 30 秒线上生效。
+**为什么要手动发布**：每次 push 到 `main` 都会触发一次 Netlify 生产部署，消耗 15 信用点
+（免费额度 300 点/月，耗尽即停站）。本地 `post-commit` 自动推送钩子已停用，现在的节奏是
+「本地随便改、随便 commit → 想上线时点一次发布」。
 
 ```text
-git commit  →  钩子自动 push  →  GitHub Actions 构建  →  Netlify 部署
+git commit（本地攒着） → 点发布 → push → GitHub Actions 构建 → Netlify 生产部署（15 点）
 ```
 
+脚本会把每次发布记到 `.publish-log.txt`（已 gitignore），本月超过 10 次会要求二次确认。
 部署进度：<https://github.com/111ad-creater/silicon-note/actions>
 
-> 钩子文件位于 `.git/hooks/post-commit`，属于本地配置、不进入版本库；想关闭自动推送删掉它即可。
+> 想恢复自动推送：把 `.git/hooks/post-commit.disabled` 改回 `post-commit` 即可。不建议——
+> 那等于每次 commit 都烧 15 点。

@@ -55,7 +55,7 @@ export const module8 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '记住延迟（Latency）和吞吐（Throughput）是一对天生的“跷跷板”：想拉高总吞吐，就要拼命加大 Batch，但 Batch 越大单用户延迟就越慢。性能工程师最经典的工作，就是画出 **“吞吐-延迟帕累托前沿曲线（Pareto Curve）”**，在满足用户不卡顿的红线下，把吞吐推到最高点。',
+            '记住延迟（TTFT / TPOT / ITL）和吞吐（Throughput）是一对天生的“跷跷板”：盲目拉大 Batch 虽能让总吞吐虚高，却会让延迟跌穿客户红线。性能工程师的硬核交付物是测出 **“Throughput vs Goodput（有效吞吐）帕累托前沿曲线”**，在严格满足 SLA/SLO（服务等级目标）与兼顾 MFU / MBU 硬件榨干率的前提下，把每卡盈利吞吐推到最高点。\n核心工程表达：推理系统调优本质是在 SLO（服务等级目标）约束下平衡 TTFT / TPOT / ITL 与 Throughput vs Goodput（有效吞吐），以 MFU / MBU 标定硬件物理余量。',
         },
         {
           type: 'quiz',
@@ -114,7 +114,7 @@ export const module8 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '千万记住“先宏观、后微观”的排障铁律：90% 的真实大模型性能问题（比如 DataLoader 拖后腿、忘开算子融合、无意中触发 CPU-GPU 同步、通信没重叠），在 **Nsight Systems 时间轴** 里看 5 分钟就能抓现行，绝不要一上来就盲目钻进汇编里死磕单个算子！',
+            '千万记住“先宏观、后微观”的排障铁律：90% 的真实大模型性能问题（比如 DataLoader 拖后腿、忘开算子融合、无意中触发 CPU-GPU 同步、通信没重叠），在 Nsight Systems (nsys) 时间轴里看 5 分钟就能抓现行；锁定具体慢 Kernel 后再切入 Nsight Compute (ncu) 显微镜看 Roofline 与 Bank Conflict，绝不要一上来就盲目钻进汇编里死磕！\n核心工程表达：性能剖析遵循自顶向下漏斗法则——先用 Nsight Systems (nsys) 排查系统级气泡与调度阻塞，再下沉至 Nsight Compute (ncu) 定量诊断单 Kernel 算力/带宽瓶颈。',
         },
         {
           type: 'quiz',
@@ -177,7 +177,7 @@ export const module8 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '遇到任何奇葩报错或性能暴跌，保持“控制变量二分法”：先用最小模型/最小长度/单卡跑通基准线，然后每次只打开一个优化开关（如先开 FP8、再开 Prefix Caching、再开多卡 TP），记录每一步的指标变化。这是把一团乱麻理成清晰破案报告的终极心法。',
+            '遇到任何奇葩报错或性能暴跌，除了排查代码里隐式调用导致的 Asynchronous Execution / cudaDeviceSynchronize（异步流被强行锁死同步），更要坚持“控制变量二分法”：先用最小模型/最小长度/单卡跑通基准线，每次只打开一个优化开关（如先开 FP8、再开 CUDA Graph、再开多卡 TP）并记录指标变化。\n核心工程表达：复杂推理与训练故障遵循二分控制变量定界——先隔离隐式 cudaDeviceSynchronize 阻塞与 OOM 边界，再逐项叠加并发、量化与集合通信特性验证。',
         },
         {
           type: 'quiz',
@@ -236,7 +236,7 @@ export const module8 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '当你花 5 块钱去 AutoDL 租一张云端显卡跑 vLLM 压测实验时，严格按照上面这 4 条军规来做，并输出一份带“环境配置 + 理论天花板对比 + 实测 P99 曲线 + 排障日记”的报告贴在个人网站上——这份简历作品集的含金量，能直接秒杀绝大多数只会调包跑 Demo 的竞争对手。',
+            '当你去云端租卡跑 vLLM 压测实验时，严格守住 Warmup（预热）、Asynchronous Execution / cudaDeviceSynchronize（异步精准打点计时）、控温锁频与 P99 分位数这 4 条军规，并输出一份带“环境配置 + 理论天花板对比 + 实测 P99 曲线 + 排障日记”的报告贴在个人网站上——这份简历作品集能直接秒杀绝大多数只会调包跑 Demo 的竞争对手。\n核心工程表达：可信硅后基准测试必须包含充分 Warmup（预热）、基于 CUDA Event / cudaDeviceSynchronize 的精确异步计时以及长尾 P95/P99 分位数分布。',
         },
         {
           type: 'quiz',
@@ -294,7 +294,7 @@ export const module8 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '当你用性能剖析工具把线上集群的 MBU 从 40% 优化到 75%、把显存碎片清零让并发翻倍时，你省下的不仅仅是几行代码的耗时——在万卡规模下，你亲手帮公司省下了上亿元的电费与显卡采购费，更让成千上万普通人能以极低甚至免费的代价用上最强大的 AI。这就是 AI 芯片性能工程师最硬核、也最酷的价值所在。',
+            '算清 AI Infra 商业账的核心公式是 **TCO / PUE / $/1M Tokens（总拥有成本 / 数据中心电能利用效率 / 每百万 Token 推理成本）**：硬件折旧、机房 PUE 电费折算进每卡每小时租金，再除以 SLO 约束下的有效产出 Goodput。当你把集群 MBU 从 40% 优化到 75%、显存碎片清零让并发翻倍时，你就直接把每百万 Token 成本打下来了一半。\n核心工程表达：算力经济学的最终标尺是结合 TCO / PUE / $/1M Tokens 衡量系统单位有效产出，将底层 MFU/MBU 与 Goodput 优化直接兑现为商业毛利。',
         },
         {
           type: 'quiz',
@@ -403,7 +403,7 @@ export const module8 = {
           title: '面试必杀问答储备',
           copyText: `nvidia-smi dmon -s pucm\nnvidia-smi -q -d PERFORMANCE | grep -A 10 "Clocks Throttle Reasons"`,
           content:
-            '问：「`nvidia-smi` 显示 GPU 利用率 99%，是不是显卡已经跑满了？」\n答：「不是！那只是时间窗口内有 Kernel 活跃的占比。判断真满载必须看三合一：实时功耗是否接近 TDP、用 DCGM 看 Tensor Core / DRAM 真实占比，以及用 Nsight Systems (`nsys`) 看时间轴里有没有空白气泡。」',
+            '问：「`nvidia-smi` 显示 GPU 利用率 99%，是不是显卡已经跑满了？」\n答：「不是！那只是时间窗口内有 Kernel 活跃的占比。判断真满载必须看三合一：实时功耗是否接近 TDP、用 DCGM 看 Tensor Core / DRAM 真实占比，以及用 Nsight Systems (`nsys`) 看时间轴里有没有空白气泡。」\n核心工程表达：真实硬件压榨诊断严禁轻信单一 `GPU-Util` 指标，须联合 TDP 功耗、`Clocks Throttle Reasons` 与 `nsys`/`ncu` 硬件计数器交叉印证。',
         },
         {
           type: 'quiz',

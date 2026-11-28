@@ -1,0 +1,65 @@
+{
+  "updated_at": "2026-11-28 16:00 (UTC+8)",
+  "engines": [
+    {
+      "id": "vllm",
+      "name": "vLLM",
+      "repo": "vllm-project/vllm",
+      "latest_version": "v0.8.4",
+      "released_at": "2026-11-25",
+      "category": "通用推理引擎",
+      "highlights_zh": "增强 V1 引擎异步调度器、默认启用 Chunked Prefill，并优化 FP8 KV Cache 与 NIXL 分离式传输吞吐。",
+      "url": "https://github.com/vllm-project/vllm/releases"
+    },
+    {
+      "id": "sglang",
+      "name": "SGLang",
+      "repo": "sgl-project/sglang",
+      "latest_version": "v0.4.6",
+      "released_at": "2026-11-24",
+      "category": "高并发 / RadixAttention",
+      "highlights_zh": "优化多节点 MoE 大规模专家并行（EP）与 Zero-Overhead CPU 调度器，大幅压低多轮 Agent 场景 P99 TTFT。",
+      "url": "https://github.com/sgl-project/sglang/releases"
+    },
+    {
+      "id": "triton",
+      "name": "OpenAI Triton",
+      "repo": "triton-lang/triton",
+      "latest_version": "v3.3.0",
+      "released_at": "2026-11-18",
+      "category": "块级算子编译器",
+      "highlights_zh": "强化 Blackwell MXFP4 / TMA 异步张量拷贝原语支持，并改善 AMD/异构后端寄存器溢出调度。",
+      "url": "https://github.com/triton-lang/triton/releases"
+    },
+    {
+      "id": "tilelang",
+      "name": "TileLang",
+      "repo": "tile-ai/tilelang",
+      "latest_version": "v0.1.5",
+      "released_at": "2026-11-22",
+      "category": "异构块级算子语言",
+      "highlights_zh": "新增对稀疏块级注意力（NSA / Block-Sparse）与多款国产 NPU 片上 SRAM 双缓冲模板的原生代码生成支持。",
+      "url": "https://github.com/tile-ai/tilelang/releases"
+    },
+    {
+      "id": "llama-cpp",
+      "name": "llama.cpp",
+      "repo": "ggml-org/llama.cpp",
+      "latest_version": "b5210",
+      "released_at": "2026-11-27",
+      "category": "端侧 / GGUF 引擎",
+      "highlights_zh": "优化统一内存与 Vulkan/CANN 异构后端的 W4A16 矩阵乘内核，进一步降低端侧 Decode 内存带宽压力。",
+      "url": "https://github.com/ggml-org/llama.cpp/releases"
+    },
+    {
+      "id": "nano-vllm",
+      "name": "Nano-vLLM",
+      "repo": "GeeeekExplorer/nano-vllm",
+      "latest_version": "main-latest",
+      "released_at": "2026-11-20",
+      "category": "极简教学/实验内核",
+      "highlights_zh": "千行级纯 Python + Triton 实现 Continuous Batching、PagedAttention 与 Prefix Caching，适合 L3.5 源码改造实战。",
+      "url": "https://github.com/GeeeekExplorer/nano-vllm"
+    }
+  ]
+}

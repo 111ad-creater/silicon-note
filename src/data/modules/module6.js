@@ -55,7 +55,7 @@ export const module6 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '理解“16P 静态显存公式”就能瞬间看透为什么训练集群动辄需要成百上千张卡：推理拼的是低延迟和省带宽，而训练拼的是超大显存容积与极致的长期算力吞吐（MFU）。',
+            '理解 Forward / Backward Pass（前向/反向传播 2P+4P≈6P 计算量）与 Optimizer States (AdamW) 构成的“16P 静态显存公式”，就能瞬间看透为什么训练集群动辄需要成百上千张卡：推理拼的是低延迟和省带宽，而训练拼的是超大显存容积与极致的长期算力吞吐（MFU）。\n核心工程表达：混合精度训练的内存墙源于 Forward / Backward Pass 激活暂存与 16 Bytes/Param 的 Weights/Gradients/Optimizer States (AdamW) 静态开销。',
         },
         {
           type: 'quiz',
@@ -114,7 +114,7 @@ export const module6 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '如果训练监控曲线里突然出现 Loss 尖刺（Loss Spike）甚至直接变成 NaN，排障时除了检查脏数据，第一怀疑对象就是低精度数值溢出（尤其是在尝试 FP8 或激进学习率时）。',
+            '如果训练监控曲线里突然出现 Loss Spike（尖刺）甚至 NaN，排障时除了检查脏数据，第一怀疑对象就是数值上下溢或梯度爆炸：必须核对 FP32 Master Weights（主权重）维护是否完整，以及 Loss Scaling / Gradient Clipping（动态损失缩放与全局梯度范数裁剪，防止单步极大梯度掀翻参数更新）是否正确生效。\n核心工程表达：混合精度训练以 BF16/FP8 算力换取吞吐，同时依赖 FP32 Master Weights（主权重）与 Loss Scaling / Gradient Clipping 守住长周期收敛的数值稳定性。',
         },
         {
           type: 'quiz',
@@ -172,7 +172,7 @@ export const module6 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '千万别觉得重计算“多算了 33% 就一定更慢”！省下海量显存后，你可以把 Batch Size 翻倍，反而可能让 GPU 吃得更饱、通信占比更低，最终总训练吞吐量（Tokens/s）甚至比不开重计算还要高！',
+            '千万别觉得 Activation Checkpointing（重计算）“多算了 33% 就一定更慢”！省下海量激活显存后，你可以把 Micro-Batch Size 翻倍，反而让 Tensor Core 吃得更饱、通信占比更低，最终吞吐甚至比不开还要高；相比之下，CPU Offload 把冷状态甩过慢速 PCIe 内存总线，仅推荐在卡数极度拮据时兜底使用。\n核心工程表达：Activation Checkpointing（选择性重计算）以可控的额外计算换取 O(√L) 级激活显存压缩并提升有效 Batch，而 CPU Offload 受制于 PCIe 带宽仅适用于显存极端受限场景。',
         },
         {
           type: 'quiz',
@@ -231,7 +231,7 @@ export const module6 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            'ZeRO-1 和 ZeRO-2 在分布式训练里几乎是“无脑必开的免费午餐”——显存直接省掉 4~8 倍，却几乎不拖慢训练速度。只有当模型大到单卡连权重都塞不下时，再升级到 ZeRO-3 / FSDP 或结合张量并行（TP）。',
+            '在分布式训练中，ZeRO-1/2/3 / FSDP（参数/梯度/优化器分片）是消灭内存冗余的标准答案：ZeRO-1（切优化器）与 ZeRO-2（切优化器+梯度）几乎是“无脑必开的免费午餐”——显存直接省掉 4~8 倍，却几乎不拖慢速度；只有当模型大到单卡连权重都塞不下时，再升级到 ZeRO-3 / FSDP（配异步预取）或结合张量并行（TP）。\n核心工程表达：ZeRO-1/2/3 / FSDP（参数/梯度/优化器分片）通过 ReduceScatter/AllGather 消除跨卡静态状态冗余，并借助异步 Prefetch 重叠隐藏全切分通信代价。',
         },
         {
           type: 'quiz',

@@ -6,11 +6,21 @@ import {
   Check,
   X,
   RotateCcw,
+  Star,
 } from 'lucide-react';
+import {
+  upsertWrongQuestion,
+  recordDailyActivity,
+  loadWrongBook,
+} from '../../utils/activityStore';
 
-function CampusQuizCard({ quiz }) {
+function CampusQuizCard({ quiz, lessonId }) {
+  const uid = `campus-${lessonId}-q-${quiz.index}`;
   const [selectedKey, setSelectedKey] = useState(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [starred, setStarred] = useState(() =>
+    loadWrongBook().some((w) => w.uid === uid && w.starred)
+  );
 
   const hasOptions = Array.isArray(quiz.options) && quiz.options.length > 0;
   const isAnswered = selectedKey !== null;
@@ -19,6 +29,34 @@ function CampusQuizCard({ quiz }) {
   const handleSelectOption = (optKey) => {
     setSelectedKey(optKey);
     setIsOpen(true);
+    recordDailyActivity(1);
+    if (quiz.correctKey && optKey !== quiz.correctKey) {
+      upsertWrongQuestion({
+        uid,
+        lessonId,
+        category: '模拟CMOS/校内',
+        question: quiz.question,
+        options: quiz.options,
+        correctKey: quiz.correctKey,
+        answer: quiz.answer,
+        starred,
+      });
+    }
+  };
+
+  const handleToggleStar = () => {
+    const nextStar = !starred;
+    setStarred(nextStar);
+    upsertWrongQuestion({
+      uid,
+      lessonId,
+      category: '模拟CMOS/校内',
+      question: quiz.question,
+      options: quiz.options || [],
+      correctKey: quiz.correctKey || '',
+      answer: quiz.answer,
+      starred: nextStar,
+    });
   };
 
   const handleReset = () => {
@@ -54,6 +92,18 @@ function CampusQuizCard({ quiz }) {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleToggleStar}
+            title="加入错题本 / 星标收藏"
+            className={`inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs border transition-colors ${
+              starred
+                ? 'bg-amber-500/20 border-amber-500/45 text-amber-600 dark:text-amber-300'
+                : 'border-slate-200 dark:border-slate-700 text-slate-400 hover:text-amber-500'
+            }`}
+          >
+            <Star className={`w-3.5 h-3.5 ${starred ? 'fill-current' : ''}`} />
+          </button>
           {isAnswered && (
             <button
               type="button"
@@ -184,7 +234,7 @@ export default function CampusQuizSection({ lessonId, quizzes }) {
 
       <div className="space-y-3.5">
         {quizzes.map((quiz) => (
-          <CampusQuizCard key={`${lessonId}-quiz-${quiz.index}`} quiz={quiz} />
+          <CampusQuizCard key={`${lessonId}-quiz-${quiz.index}`} quiz={quiz} lessonId={lessonId} />
         ))}
       </div>
     </section>

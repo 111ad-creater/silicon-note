@@ -1,4 +1,4 @@
-// Catalog of all 9 Interactive Labs and lesson-to-lab mapping configurations
+// Catalog of all 10 Interactive Labs and lesson-to-lab mapping configurations
 
 export const LAB_TABS = [
   {
@@ -82,6 +82,15 @@ export const LAB_TABS = [
     desc: 'Mode A 探索 Golden Model PPA 与 3D 存储；Mode B 排障 Pinned/NUMA 搬运与 DVFS 热节流',
     linkedLessons: ['1.7', '2.5', '4.7', '8.6'],
   },
+  {
+    id: 'lab10',
+    number: 'Lab 10',
+    title: '10 芯片天梯 & 算力平权成本计算器',
+    shortTitle: '芯片天梯/成本',
+    moduleTag: '模块 3·5·8',
+    desc: '全球 10 款主流 AI 芯片算力/带宽/价格排行，支持任意模型 config.json X 光解剖',
+    linkedLessons: ['3.5', '5.8', '8.5'],
+  },
 ];
 
 const LAB_ALIAS_MAP = {
@@ -113,6 +122,10 @@ const LAB_ALIAS_MAP = {
   lab9: 'lab9',
   arch: 'lab9',
   dvfs: 'lab9',
+  '10': 'lab10',
+  lab10: 'lab10',
+  ladder: 'lab10',
+  chips: 'lab10',
 };
 
 export function normalizeLabId(raw) {

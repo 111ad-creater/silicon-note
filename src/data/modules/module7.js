@@ -54,7 +54,7 @@ export const module7 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '记住分布式 AI 系统的黄金铁律：**“把通信最频繁的切分（如张量并行 TP）死死锁在 NVLink 高速域内部；跨机慢速网络（IB/RoCE）只留给通信稀疏的并行（如流水线并行 PP 和数据并行 DP）！”** 一旦把 TP 跨过慢速网卡，性能直接雪崩。',
+            '记住分布式 AI 系统的黄金铁律：**“把通信最频繁的切分（如张量并行 TP）死死锁在 PCIe / NVLink / NVSwitch 高速域内部；跨机慢速网络（InfiniBand / RoCE / RDMA）只留给通信稀疏的并行（如流水线并行 PP 和数据并行 DP）！”** 一旦把高频同步切分跨过慢速网卡，性能直接雪崩。\n核心工程表达：集群拓扑选型遵循带宽分层匹配原则——机内依赖 PCIe / NVLink / NVSwitch 承载高频 TP/EP，跨机依赖 InfiniBand / RoCE / RDMA 承载 DP/PP 流量。',
         },
         {
           type: 'quiz',
@@ -113,7 +113,7 @@ export const module7 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '在 Ring-AllReduce 算法里有一个极其优美的数学结论：当卡数 N 很大时，每张卡的通信数据量收敛于大约 2 倍数据体积，**与总卡数 N 无关**！这意味着只要网卡带宽够宽、网络不拥塞，AllReduce 理论上可以扩展到上千张卡而不崩溃。',
+            '在 Ring-AllReduce 等 Collective Communication（AllReduce / AllGather / ReduceScatter / All-to-All）集合通信原语里，有一个极其优美的数学结论：当卡数 N 很大时，每张卡的 AllReduce 通信数据量收敛于大约 2 倍数据体积，**与总卡数 N 无关**！这意味着只要网卡带宽够宽、拥塞可控，集合通信理论上可以扩展到上千张卡而不崩溃。\n核心工程表达：分布式同步依赖 Collective Communication（AllReduce / AllGather / ReduceScatter / All-to-All）原语，其拓扑算法复杂度与网络拥塞隔离直接决定集群线性扩展效率。',
         },
         {
           type: 'quiz',
@@ -177,7 +177,7 @@ export const module7 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '在大厂做万卡训练或大规模推理架构选型时，最值钱的本事就是“配比 5D 并行组合”（比如 TP=8, PP=4, DP=32, EP=16）。配得好 MFU 高达 50%+，配错了光通信和流水线气泡就能吃掉一半预算。',
+            '在大厂做万卡训练或大规模推理架构选型时，最值钱的本事就是“配比 5D Parallelism (DP/TP/PP/CP/EP) 组合”（例如 TP=8, PP=4, DP=32, EP=16），并用充足的 Micro-batch 切分或交错调度压平 Pipeline Bubble（流水线气泡）。配得好 MFU 高达 50%+，配错了光通信和流水线气泡就能吃掉一半预算。\n核心工程表达：5D Parallelism (DP/TP/PP/CP/EP) 的核心优化目标是在显存容量限制内最小化跨机流量与 Pipeline Bubble（流水线气泡）空转率。',
         },
         {
           type: 'quiz',
@@ -234,7 +234,7 @@ export const module7 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '注意一个隐蔽的底层陷阱：NCCL 的通信 Kernel 默认也会占用几个 GPU 的 SM 车间来搬运数据！如果通信抢了太多 SM，虽然看起来“重叠”了，但计算引擎变慢了。因此现代框架（如 DeepSeek 定制通信内核）会精确限制通信只占极少数 SM，甚至用纯硬件 DMA 引擎来消除争抢。',
+            '实现高效的 Compute-Comm Overlap（计算通信重叠）时要注意一个隐蔽的底层陷阱：NCCL 的通信 Kernel 默认也会占用几个 GPU 的 SM 车间来搬运数据！如果通信抢了太多 SM，虽然看起来“重叠”了，但计算引擎变慢了。因此现代框架（如 DeepSeek DualPipe 定制内核）会精确限制通信只占极少数 SM，甚至用纯硬件 DMA 引擎来消除争抢。\n核心工程表达：Compute-Comm Overlap（计算通信重叠）通过独立 CUDA Stream 掩盖传输延迟，工程调优需精细隔离通信 SM 抢占以避免主计算路径降速。',
         },
         {
           type: 'quiz',
@@ -292,7 +292,7 @@ export const module7 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '衡量一座万卡智算中心真正实力的核心指标叫 **有效训练时间占比（Goodput / ETTR）**。哪怕单卡 MFU 调到了 55%，如果集群三天两头掉卡重启、每次存盘卡半小时，算下来的总有效产出依然惨不忍睹。',
+            '衡量一座万卡智算中心真正实力的核心指标叫 **有效训练时间占比（Goodput / ETTR）**。万卡同步下任何一颗热降频的 Straggler（慢节点木桶效应）或幽灵级 Silent Data Corruption (SDC) 静默算错，都会拖垮全群；哪怕单卡 MFU 调到了 55%，如果集群缺乏热备秒级踢卡与异步 Checkpoint 自愈，算下来的总有效产出依然惨不忍睹。\n核心工程表达：超大规模集群稳定性的命门在于自动探测踢除 Straggler（慢节点木桶效应）、定期巡检拦截 Silent Data Corruption (SDC) 并依赖异步 Checkpoint 保障有效 ETTR。',
         },
         {
           type: 'quiz',

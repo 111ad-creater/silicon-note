@@ -6,7 +6,14 @@ import LabPage from './pages/LabPage';
 import BenchmarksPage from './pages/BenchmarksPage';
 import GlossaryPage from './pages/GlossaryPage';
 import CampusPage from './pages/CampusPage';
+import AiRadarPage from './pages/AiRadarPage';
+import PortfolioView from './components/PortfolioView';
+import SpotlightSearch from './components/SpotlightSearch';
+import FormulaQuickRefModal from './components/FormulaQuickRefModal';
+import WrongQuestionsModal from './components/WrongQuestionsModal';
+import DataBackupModal from './components/DataBackupModal';
 import { CURRICULUM_STAGES } from './data/curriculum';
+import { loadWrongBook, recordDailyActivity } from './utils/activityStore';
 import {
   normalizeLabId,
   parseInitialRouteFromUrl,
@@ -27,6 +34,15 @@ export default function App() {
   const [activeLab, setActiveLab] = useState(initialRoute.activeLab || 'lab1');
   const [labPreset, setLabPreset] = useState(initialRoute.preset || null);
   const [labPresetNonce, setLabPresetNonce] = useState(initialRoute.preset ? 1 : 0);
+
+  const [portfolioMode, setPortfolioMode] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [quickRefOpen, setQuickRefOpen] = useState(false);
+  const [wrongBookOpen, setWrongBookOpen] = useState(false);
+  const [backupOpen, setBackupOpen] = useState(false);
+  const [wrongCount, setWrongCount] = useState(() => loadWrongBook().length);
+  const [benchmarksInitTab, setBenchmarksInitTab] = useState(null);
+  const [benchmarksTabNonce, setBenchmarksTabNonce] = useState(0);
 
   const [isDark, setIsDark] = useState(() => {
     try {
@@ -76,17 +92,68 @@ export default function App() {
     syncLabUrl(activePage, activeLab, labPreset);
   }, [activePage, activeLab, labPreset]);
 
+  useEffect(() => {
+    const refreshWrong = () => setWrongCount(loadWrongBook().length);
+    window.addEventListener('silicon-note-wrongbook-updated', refreshWrong);
+
+    const onKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setSearchOpen((v) => !v);
+      } else if (
+        e.key === '?' &&
+        e.shiftKey &&
+        !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName || '')
+      ) {
+        e.preventDefault();
+        setQuickRefOpen((v) => !v);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('silicon-note-wrongbook-updated', refreshWrong);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, []);
+
   const handleNavigate = (pageId) => {
+    setPortfolioMode(false);
     setActivePage(pageId);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleOpenLab = useCallback((labId = 'lab1', preset = null) => {
+    setPortfolioMode(false);
     const targetLab = typeof labId === 'string' ? normalizeLabId(labId) : 'lab1';
     setActiveLab(targetLab);
     setLabPreset(preset && typeof preset === 'object' ? preset : null);
     setLabPresetNonce((n) => n + 1);
     setActivePage('lab');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  const handleSendToChipLadder = useCallback(
+    (modelConfigPayload) => {
+      handleOpenLab('lab10', modelConfigPayload);
+    },
+    [handleOpenLab]
+  );
+
+  const handleSpotlightSelect = useCallback((payload) => {
+    if (!payload) return;
+    setPortfolioMode(false);
+    if (payload.page === 'docs' && payload.lessonId) {
+      setActiveLessonId(payload.lessonId);
+      setActivePage('docs');
+    } else if (payload.page === 'benchmarks') {
+      if (payload.tab) {
+        setBenchmarksInitTab(payload.tab);
+        setBenchmarksTabNonce((n) => n + 1);
+      }
+      setActivePage('benchmarks');
+    } else if (payload.page) {
+      setActivePage(payload.page);
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
@@ -118,9 +185,11 @@ export default function App() {
   };
 
   const handleToggleComplete = (lessonId) => {
-    setCompletedLessons((prev) =>
-      prev.includes(lessonId) ? prev.filter((id) => id !== lessonId) : [...prev, lessonId]
-    );
+    setCompletedLessons((prev) => {
+      const adding = !prev.includes(lessonId);
+      if (adding) recordDailyActivity(2);
+      return adding ? [...prev, lessonId] : prev.filter((id) => id !== lessonId);
+    });
   };
 
   return (
@@ -130,47 +199,91 @@ export default function App() {
         onNavigate={handleNavigate}
         isDark={isDark}
         onToggleTheme={() => setIsDark((d) => !d)}
+        portfolioMode={portfolioMode}
+        onTogglePortfolio={setPortfolioMode}
+        onOpenSearch={() => setSearchOpen(true)}
+        onOpenQuickRef={() => setQuickRefOpen(true)}
+        onOpenWrongBook={() => setWrongBookOpen(true)}
+        wrongCount={wrongCount}
+        onOpenBackup={() => setBackupOpen(true)}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8">
-        {activePage === 'home' && (
-          <HomePage
+        {portfolioMode ? (
+          <PortfolioView
             completedLessons={completedLessons}
-            onStartLessonOne={handleStartLessonOne}
-            onOpenStage={handleOpenStage}
-            onOpenLesson={handleOpenLesson}
+            onOpenLab={(labId) => handleOpenLab(labId)}
             onNavigate={handleNavigate}
+            onExitPortfolio={() => setPortfolioMode(false)}
           />
+        ) : (
+          <>
+            {activePage === 'home' && (
+              <HomePage
+                completedLessons={completedLessons}
+                onStartLessonOne={handleStartLessonOne}
+                onOpenStage={handleOpenStage}
+                onOpenLesson={handleOpenLesson}
+                onNavigate={handleNavigate}
+              />
+            )}
+
+            {activePage === 'docs' && (
+              <DocsPage
+                activeLessonId={activeLessonId}
+                onSelectLesson={setActiveLessonId}
+                completedLessons={completedLessons}
+                onToggleComplete={handleToggleComplete}
+                onNavigateLab={handleOpenLab}
+              />
+            )}
+
+            {activePage === 'lab' && (
+              <LabPage
+                activeLab={activeLab}
+                onSelectLab={handleSelectLabTab}
+                preset={labPreset}
+                presetNonce={labPresetNonce}
+                onOpenLesson={handleOpenLesson}
+              />
+            )}
+
+            {activePage === 'benchmarks' && (
+              <BenchmarksPage
+                onOpenLesson={handleOpenLesson}
+                requestedTab={benchmarksInitTab}
+                requestedTabNonce={benchmarksTabNonce}
+              />
+            )}
+
+            {activePage === 'glossary' && <GlossaryPage />}
+
+            {activePage === 'radar' && (
+              <AiRadarPage onSendToChipLadder={handleSendToChipLadder} />
+            )}
+
+            {activePage === 'campus' && <CampusPage />}
+          </>
         )}
-
-        {activePage === 'docs' && (
-          <DocsPage
-            activeLessonId={activeLessonId}
-            onSelectLesson={setActiveLessonId}
-            completedLessons={completedLessons}
-            onToggleComplete={handleToggleComplete}
-            onNavigateLab={handleOpenLab}
-          />
-        )}
-
-        {activePage === 'lab' && (
-          <LabPage
-            activeLab={activeLab}
-            onSelectLab={handleSelectLabTab}
-            preset={labPreset}
-            presetNonce={labPresetNonce}
-            onOpenLesson={handleOpenLesson}
-          />
-        )}
-
-        {activePage === 'benchmarks' && (
-          <BenchmarksPage onOpenLesson={handleOpenLesson} />
-        )}
-
-        {activePage === 'glossary' && <GlossaryPage />}
-
-        {activePage === 'campus' && <CampusPage />}
       </main>
+
+      <SpotlightSearch
+        isOpen={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        onSelectResult={handleSpotlightSelect}
+      />
+      <FormulaQuickRefModal
+        isOpen={quickRefOpen}
+        onClose={() => setQuickRefOpen(false)}
+      />
+      <WrongQuestionsModal
+        isOpen={wrongBookOpen}
+        onClose={() => setWrongBookOpen(false)}
+      />
+      <DataBackupModal
+        isOpen={backupOpen}
+        onClose={() => setBackupOpen(false)}
+      />
 
       <footer className="print:hidden border-t border-slate-200/80 dark:border-slate-800/80 bg-white/60 dark:bg-[#060A13]/80 py-6 mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">

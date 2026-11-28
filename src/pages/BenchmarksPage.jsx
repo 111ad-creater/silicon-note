@@ -28,6 +28,9 @@ import {
   Bot,
   Stethoscope,
   ExternalLink,
+  Brain,
+  Upload,
+  BookOpenCheck,
 } from 'lucide-react';
 import { BENCHMARK_POSTS } from '../data/benchmarks';
 import { CURRICULUM_STAGES } from '../data/curriculum';
@@ -38,6 +41,16 @@ import {
   TROUBLESHOOTING_SCENARIOS,
   SOFTWARE_TOOL_CATEGORIES,
 } from '../data/trainingCamp';
+import {
+  REPORT_TEMPLATES_BY_LAB,
+  PAPER_NOTE_TEMPLATE,
+} from '../data/reportTemplates';
+import { fetchDynamicData } from '../utils/dataLoader';
+import { recordDailyActivity } from '../utils/activityStore';
+import OomCommandGenerator from '../components/camp/OomCommandGenerator';
+import ParetoChartStudio from '../components/camp/ParetoChartStudio';
+import ErrorDecoder from '../components/camp/ErrorDecoder';
+import DeepDiveQaModal from '../components/camp/DeepDiveQaModal';
 import CodeBlock, { copyTextToClipboard } from '../components/CodeBlock';
 
 const STORAGE_CHECKLIST_KEY = 'silicon-note-training-checklist-v1';
@@ -108,6 +121,9 @@ const CHEATSHEET_ACCENTS = {
     'bg-indigo-500/12 text-indigo-700 dark:text-indigo-300 border-indigo-500/30',
 };
 
+const LAB_FILTER_LEVELS = ['全部', 'L0', 'L1', 'L2', 'L3', 'L3.5', 'L4', 'L5', 'L6'];
+const PAPER_DOMAINS = ['全部', '推理系统', '算子与显存', '芯片架构', '2026 前沿'];
+
 const SUB_TABS = [
   {
     id: 'roadmap',
@@ -120,23 +136,50 @@ const SUB_TABS = [
     id: 'benchmarks',
     label: '实测与排障日记',
     shortLabel: '实测日记',
-    badge: '含报告模板',
+    badge: '8关绑定 · 8套模板',
     icon: Activity,
   },
   {
     id: 'cheatsheet',
     label: '性能工程师排障速查手册',
     shortLabel: '排障速查',
-    badge: 'Cheatsheet',
+    badge: '防OOM/画图/报错',
     icon: Wrench,
+  },
+  {
+    id: 'papers',
+    label: '已读论文与个人理解',
+    shortLabel: '论文笔记',
+    badge: 'Paper Notes',
+    icon: BookOpenCheck,
   },
 ];
 
-export default function BenchmarksPage({ onOpenLesson }) {
+export default function BenchmarksPage({
+  onOpenLesson,
+  requestedTab = null,
+  requestedTabNonce = 0,
+}) {
   const [activeTab, setActiveTab] = useState('roadmap');
   const [selectedPostId, setSelectedPostId] = useState(null);
   const [smiMode, setSmiMode] = useState('vllm_burst');
   const [chartMetric, setChartMetric] = useState('tpot');
+
+  // Dynamic JSON states for Tab 2 (bench-logs) and Tab 4 (read-papers)
+  const [benchLogs, setBenchLogs] = useState(BENCHMARK_POSTS);
+  const [benchLabFilter, setBenchLabFilter] = useState('全部');
+  const [benchSearch, setBenchSearch] = useState('');
+  const [activeTemplateLab, setActiveTemplateLab] = useState('L1');
+
+  const [readPapers, setReadPapers] = useState([]);
+  const [paperDomainFilter, setPaperDomainFilter] = useState('全部');
+  const [paperSearch, setPaperSearch] = useState('');
+
+  // Local JSON preview modal + Deep-Dive Q&A modal
+  const [jsonPreviewTarget, setJsonPreviewTarget] = useState(null); // 'bench' | 'papers' | null
+  const [jsonPreviewInput, setJsonPreviewInput] = useState('');
+  const [jsonPreviewError, setJsonPreviewError] = useState('');
+  const [qaModalOpen, setQaModalOpen] = useState(false);
 
   // Report Template Modal & Copy feedback state
   const [templateModalOpen, setTemplateModalOpen] = useState(false);
@@ -147,6 +190,77 @@ export default function BenchmarksPage({ onOpenLesson }) {
   const [copiedId, setCopiedId] = useState(null);
   const [toolCatFilter, setToolCatFilter] = useState('全部');
   const [toolSearch, setToolSearch] = useState('');
+
+  useEffect(() => {
+    if (requestedTab && ['roadmap', 'benchmarks', 'cheatsheet', 'papers'].includes(requestedTab)) {
+      setActiveTab(requestedTab);
+    }
+  }, [requestedTab, requestedTabNonce]);
+
+  useEffect(() => {
+    fetchDynamicData('bench-logs.json', BENCHMARK_POSTS).then((data) => {
+      if (Array.isArray(data) && data.length > 0) setBenchLogs(data);
+    });
+    fetchDynamicData('read-papers.json', []).then((data) => {
+      if (Array.isArray(data)) setReadPapers(data);
+    });
+  }, []);
+
+  const filteredBenchLogs = useMemo(() => {
+    const q = benchSearch.trim().toLowerCase();
+    return benchLogs.filter((post) => {
+      if (benchLabFilter !== '全部' && (post.lab_id || 'L1') !== benchLabFilter) return false;
+      if (!q) return true;
+      return (
+        (post.title || '').toLowerCase().includes(q) ||
+        (post.subtitle || '').toLowerCase().includes(q) ||
+        (post.hardware || '').toLowerCase().includes(q) ||
+        (post.modelTested || '').toLowerCase().includes(q) ||
+        (post.tags || []).some((t) => t.toLowerCase().includes(q))
+      );
+    });
+  }, [benchLogs, benchLabFilter, benchSearch]);
+
+  const filteredPapers = useMemo(() => {
+    const q = paperSearch.trim().toLowerCase();
+    return readPapers.filter((p) => {
+      if (paperDomainFilter !== '全部' && p.domain !== paperDomainFilter) return false;
+      if (!q) return true;
+      return (
+        (p.title_zh || '').toLowerCase().includes(q) ||
+        (p.title_en || '').toLowerCase().includes(q) ||
+        (p.venue || '').toLowerCase().includes(q) ||
+        (p.core_bottleneck || '').toLowerCase().includes(q) ||
+        (p.personal_understanding?.intuition || '').toLowerCase().includes(q) ||
+        (p.personal_understanding?.critique_and_thought || '').toLowerCase().includes(q)
+      );
+    });
+  }, [readPapers, paperDomainFilter, paperSearch]);
+
+  const handleJumpToLabByLevel = (labLevel) => {
+    const targetTask = TRAINING_TASKS.find((t) => t.labLevel === labLevel);
+    setActiveTab('roadmap');
+    setSelectedPostId(null);
+    if (targetTask) {
+      setTimeout(() => scrollToTask(targetTask.id), 60);
+    }
+  };
+
+  const handleApplyJsonPreview = () => {
+    try {
+      const parsed = JSON.parse(jsonPreviewInput);
+      const arr = Array.isArray(parsed) ? parsed : [parsed];
+      if (jsonPreviewTarget === 'bench') {
+        setBenchLogs(arr);
+      } else if (jsonPreviewTarget === 'papers') {
+        setReadPapers(arr);
+      }
+      setJsonPreviewError('');
+      setJsonPreviewTarget(null);
+    } catch (err) {
+      setJsonPreviewError(err?.message || 'JSON 解析失败，请检查语法');
+    }
+  };
 
   const handleQuickCopy = async (id, text) => {
     const ok = await copyTextToClipboard(text);
@@ -244,10 +358,14 @@ export default function BenchmarksPage({ onOpenLesson }) {
       : 0;
 
   const toggleChecklistItem = (itemId) => {
-    setCheckedItems((prev) => ({
-      ...prev,
-      [itemId]: !prev[itemId],
-    }));
+    setCheckedItems((prev) => {
+      const nextVal = !prev[itemId];
+      if (nextVal) recordDailyActivity(1);
+      return {
+        ...prev,
+        [itemId]: nextVal,
+      };
+    });
   };
 
   const handleResetChecklist = () => {
@@ -265,7 +383,7 @@ export default function BenchmarksPage({ onOpenLesson }) {
     }
   };
 
-  const selectedPost = BENCHMARK_POSTS.find((p) => p.id === selectedPostId);
+  const selectedPost = benchLogs.find((p) => p.id === selectedPostId);
 
   const scrollToTask = (taskId) => {
     const el = document.getElementById(`training-task-${taskId}`);
@@ -276,30 +394,39 @@ export default function BenchmarksPage({ onOpenLesson }) {
 
   return (
     <div className="py-6 sm:py-8 space-y-6">
-      {/* Page Header + 3-Tab Switcher */}
+      {/* Page Header + 4-Tab Switcher */}
       <div className="space-y-5">
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 text-xs font-mono text-sky-600 dark:text-sky-400">
-            <Rocket className="w-4 h-4" />
-            <span>HANDS-ON TRAINING · 工程实战与排障训练营</span>
+        <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 text-xs font-mono text-sky-600 dark:text-sky-400">
+              <Rocket className="w-4 h-4" />
+              <span>HANDS-ON TRAINING · 工程实战、实测与论文研究工作台</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+              工程实战与排障训练营
+            </h1>
+            <p className="text-sm text-slate-600 dark:text-slate-400 max-w-3xl leading-relaxed">
+              专为「低预算、强正反馈、直通大厂简历」设计：覆盖 L0~L6 阶梯实战、实测日记、防 OOM/帕累托工具链与顶会论文精读批判笔记。
+            </p>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            工程实战与排障训练营
-          </h1>
-          <p className="text-sm text-slate-600 dark:text-slate-400 max-w-3xl leading-relaxed">
-            专为「低预算、强正反馈、直通大厂简历」设计：用几块钱云端 GPU 与本机 Python，走完从 vLLM
-            部署 OOM 排障、纸面算账校验、AWQ/Prefix Caching 对照评测、Nsight 抓气泡破案、Triton
-            融合算子到输出大厂级评测报告的完整工程闭环。
-          </p>
+
+          <button
+            type="button"
+            onClick={() => setQaModalOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm transition-colors shrink-0"
+          >
+            <Brain className="w-4 h-4" />
+            <span>系统架构深度问答演练舱 (10 题)</span>
+          </button>
         </div>
 
-        {/* 3 Sub-Tabs Bar */}
+        {/* 4 Sub-Tabs Bar */}
         <div
           role="tablist"
           aria-label="工程实战与排障训练营子页面"
           className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-[#0B1120]/90 p-1.5 shadow-sm"
         >
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-1.5">
             {SUB_TABS.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -633,23 +760,52 @@ export default function BenchmarksPage({ onOpenLesson }) {
                           </div>
                         )}
 
-                        {task.references && task.references.length > 0 && (
-                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center gap-2">
-                            <span className="text-xs font-mono font-semibold text-slate-500 dark:text-slate-400">
-                              🔗 精选官方参考传送门：
-                            </span>
-                            {task.references.map((ref) => (
-                              <a
-                                key={ref.url}
-                                href={ref.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-100/90 dark:bg-slate-900/80 text-slate-700 dark:text-slate-200 border border-slate-200/90 dark:border-slate-700/80 hover:border-[#38BDF8] hover:text-sky-600 dark:hover:text-[#38BDF8] transition-colors"
+                        {((task.references && task.references.length > 0) || task.labLevel) && (
+                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              {task.references && task.references.length > 0 && (
+                                <>
+                                  <span className="text-xs font-mono font-semibold text-slate-500 dark:text-slate-400">
+                                    🔗 精选官方参考传送门：
+                                  </span>
+                                  {task.references.map((ref) => (
+                                    <a
+                                      key={ref.url}
+                                      href={ref.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-100/90 dark:bg-slate-900/80 text-slate-700 dark:text-slate-200 border border-slate-200/90 dark:border-slate-700/80 hover:border-[#38BDF8] hover:text-sky-600 dark:hover:text-[#38BDF8] transition-colors"
+                                    >
+                                      <ExternalLink className="w-3 h-3 text-sky-500 shrink-0" />
+                                      <span>{ref.label}</span>
+                                    </a>
+                                  ))}
+                                </>
+                              )}
+                            </div>
+
+                            {task.labLevel && REPORT_TEMPLATES_BY_LAB[task.labLevel] && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const tpl = REPORT_TEMPLATES_BY_LAB[task.labLevel];
+                                  handleQuickCopy(`tpl-${task.labLevel}`, tpl.template);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-semibold bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/30 hover:bg-sky-500/20 transition-colors"
                               >
-                                <ExternalLink className="w-3 h-3 text-sky-500 shrink-0" />
-                                <span>{ref.label}</span>
-                              </a>
-                            ))}
+                                {copiedId === `tpl-${task.labLevel}` ? (
+                                  <>
+                                    <Check className="w-3.5 h-3.5 text-emerald-500" />
+                                    <span>已复制 {task.labLevel} 专属报告模板</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <ClipboardCopy className="w-3.5 h-3.5" />
+                                    <span>复制 {task.labLevel} 专属报告模板</span>
+                                  </>
+                                )}
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>
@@ -662,64 +818,153 @@ export default function BenchmarksPage({ onOpenLesson }) {
         </div>
       )}
 
-      {/* ==================== TAB 2: 实测与排障日记（保留原日记 + 报告模板） ==================== */}
+      {/* ==================== TAB 2: 实测与排障日记（8 关绑定 + 双时间戳 + 8 套模板） ==================== */}
       {activeTab === 'benchmarks' && (
         <div className="space-y-6">
-          {/* Prominent Report Template Action Strip */}
-          <div className="rounded-2xl border border-sky-500/30 bg-gradient-to-r from-sky-500/10 via-cyan-500/5 to-emerald-500/10 p-4 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <div className="inline-flex items-center gap-1.5 text-xs font-mono text-sky-700 dark:text-sky-300 font-semibold">
-                <FileText className="w-4 h-4" />
-                <span>实战 6 · 标准化评测成果交付物</span>
+          {/* 8 Dedicated Report Templates Bar */}
+          <div className="rounded-2xl border border-sky-500/30 bg-gradient-to-r from-sky-500/10 via-cyan-500/5 to-emerald-500/10 p-4 sm:p-5 space-y-4">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+              <div className="space-y-1">
+                <div className="inline-flex items-center gap-1.5 text-xs font-mono text-sky-700 dark:text-sky-300 font-semibold">
+                  <FileText className="w-4 h-4" />
+                  <span>L0 ~ L6 全部 8 套专属实验报告 Markdown 模板（一键复制发 AI 整理回填）</span>
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-300">
+                  选中对应实战关卡切换并复制专属结构化模板，或点击右侧「本地 JSON 预览导入」在推送 GitHub 前本地预览排版。
+                </p>
               </div>
-              <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300">
-                跑完云端压测与 Nsight 抓包后，直接套用工业界大厂标准 Markdown 模板输出评测报告（含环境快照、Roofline 理论锚点与 P50/P99 表格）。
-              </p>
+
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setJsonPreviewTarget('bench');
+                    setJsonPreviewInput(JSON.stringify(benchLogs, null, 2));
+                    setJsonPreviewError('');
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:border-sky-400"
+                >
+                  <Upload className="w-3.5 h-3.5 text-sky-400" />
+                  <span>本地 JSON 预览导入</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleCopyAndPreviewTemplate(true)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold bg-sky-500 hover:bg-sky-400 text-slate-950 transition-colors"
+                >
+                  <ClipboardCopy className="w-3.5 h-3.5" />
+                  <span>预览/复制通用总模板</span>
+                </button>
+              </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-              <button
-                type="button"
-                onClick={() => handleCopyAndPreviewTemplate(true)}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-sky-500 hover:bg-sky-400 text-slate-950 shadow-glow-cyber transition-all active:scale-[0.99]"
-              >
-                {templateCopied ? (
-                  <>
-                    <Check className="w-4 h-4" />
-                    <span>已复制模板并打开预览</span>
-                  </>
-                ) : (
-                  <>
-                    <ClipboardCopy className="w-4 h-4" />
-                    <span>📋 一键复制大厂级性能评测报告 Markdown 模板</span>
-                  </>
-                )}
-              </button>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {Object.values(REPORT_TEMPLATES_BY_LAB).map((tpl) => (
+                <button
+                  key={tpl.labId}
+                  type="button"
+                  onClick={() => setActiveTemplateLab(tpl.labId)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-mono font-semibold border transition-colors ${
+                    activeTemplateLab === tpl.labId
+                      ? 'bg-sky-500 text-slate-950 border-sky-400'
+                      : 'bg-white/80 dark:bg-slate-900/80 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                  }`}
+                >
+                  {tpl.labId} 模板
+                </button>
+              ))}
             </div>
+
+            {REPORT_TEMPLATES_BY_LAB[activeTemplateLab] && (
+              <CodeBlock
+                title={REPORT_TEMPLATES_BY_LAB[activeTemplateLab].title}
+                filename={REPORT_TEMPLATES_BY_LAB[activeTemplateLab].filename}
+                language="markdown"
+                code={REPORT_TEMPLATES_BY_LAB[activeTemplateLab].template}
+                defaultExpanded={false}
+                collapsible={true}
+                copyLabel={`复制 ${activeTemplateLab} 模板`}
+              />
+            )}
           </div>
 
           {/* Original List View OR Detail View */}
           {!selectedPost ? (
-            <div className="space-y-6">
-              <div className="space-y-1.5">
-                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
-                  实测与排障日记
-                </h2>
-                <p className="text-sm text-slate-600 dark:text-slate-400 max-w-2xl">
-                  真机跑出来的监控与延迟曲线才是最硬核的老师。点击下方实测记录卡片，查看交互式{' '}
-                  <code className="font-mono text-sky-500">nvidia-smi</code> 面板与 TTFT/TPOT 性能对比图表。
-                </p>
+            <div className="space-y-5">
+              <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+                <div className="space-y-1">
+                  <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
+                    实测与排障日记 ({filteredBenchLogs.length})
+                  </h2>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    绑定 L0~L6 关卡并记录创建/修改双时间戳；点击卡片查看交互式 <code className="font-mono text-sky-500">nvidia-smi</code> 面板与图表。
+                  </p>
+                </div>
+
+                <div className="relative w-full lg:w-72">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={benchSearch}
+                    onChange={(e) => setBenchSearch(e.target.value)}
+                    placeholder="搜索日记标题、显卡或标签..."
+                    className="w-full pl-8 pr-7 py-2 rounded-xl text-xs border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B1120] text-slate-800 dark:text-slate-200"
+                  />
+                  {benchSearch && (
+                    <button
+                      type="button"
+                      onClick={() => setBenchSearch('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Lab Level Filter Pills */}
+              <div className="flex flex-wrap gap-1.5">
+                {LAB_FILTER_LEVELS.map((lvl) => (
+                  <button
+                    key={lvl}
+                    type="button"
+                    onClick={() => setBenchLabFilter(lvl)}
+                    className={`px-3 py-1 rounded-lg text-xs font-mono font-semibold border transition-colors ${
+                      benchLabFilter === lvl
+                        ? 'bg-emerald-500 text-slate-950 border-emerald-400'
+                        : 'bg-white dark:bg-[#0B1120] text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800 hover:border-emerald-400/50'
+                    }`}
+                  >
+                    {lvl}
+                  </button>
+                ))}
               </div>
 
               <div className="grid gap-6">
-                {BENCHMARK_POSTS.map((post) => (
-                  <button
+                {filteredBenchLogs.map((post) => (
+                  <div
                     key={post.id}
                     onClick={() => setSelectedPostId(post.id)}
-                    className="group text-left rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B1120]/90 hover:border-sky-400/60 p-6 sm:p-8 transition-all hover:-translate-y-0.5 hover:shadow-xl space-y-5"
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') setSelectedPostId(post.id);
+                    }}
+                    className="group cursor-pointer text-left rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B1120]/90 hover:border-sky-400/60 p-6 sm:p-8 transition-all hover:-translate-y-0.5 hover:shadow-xl space-y-5"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex flex-wrap items-center gap-2.5 text-xs font-mono">
+                      <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleJumpToLabByLevel(post.lab_id || 'L1');
+                          }}
+                          className="px-2.5 py-1 rounded-md bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/35 font-bold hover:bg-indigo-500/25"
+                          title="跳转至 Tab 1 对应实战关卡"
+                        >
+                          {post.lab_id || 'L1'} 关卡 ↗
+                        </button>
                         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/25">
                           <Coins className="w-3.5 h-3.5" />
                           {post.cost}
@@ -728,16 +973,22 @@ export default function BenchmarksPage({ onOpenLesson }) {
                           <Cpu className="w-3.5 h-3.5" />
                           {post.hardware}
                         </span>
-                        <span className="inline-flex items-center gap-1 text-slate-500 dark:text-slate-400">
-                          <Clock className="w-3.5 h-3.5" />
-                          {post.date} · {post.readTime}
-                        </span>
                       </div>
 
                       <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-sky-600 dark:text-sky-400 group-hover:translate-x-1 transition-transform">
                         <span>查看监控面板与对比图</span>
                         <ArrowRight className="w-4 h-4" />
                       </span>
+                    </div>
+
+                    {/* Dual Timestamps */}
+                    <div className="flex flex-wrap items-center gap-4 text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                      <span className="inline-flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-sky-400" />
+                        <span>创建于：{post.created_at || `${post.date} 10:00`}</span>
+                      </span>
+                      <span>修改于：{post.updated_at || `${post.date} 18:00`}</span>
+                      <span>· {post.readTime}</span>
                     </div>
 
                     <div className="space-y-2">
@@ -781,7 +1032,7 @@ export default function BenchmarksPage({ onOpenLesson }) {
                         </span>
                       ))}
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
             </div>
@@ -1087,6 +1338,11 @@ export default function BenchmarksPage({ onOpenLesson }) {
       {/* ==================== TAB 3: 性能工程师排障速查手册 ==================== */}
       {activeTab === 'cheatsheet' && (
         <div className="space-y-10">
+          {/* Batch 3 & 5 Tools: Anti-OOM Generator + Pareto Chart Studio + 15-Error Decoder */}
+          <OomCommandGenerator />
+          <ParetoChartStudio />
+          <ErrorDecoder onOpenLesson={onOpenLesson} />
+
           {/* Upper Section: 6 Real Troubleshooting Scenarios */}
           <div className="space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
@@ -1534,6 +1790,250 @@ export default function BenchmarksPage({ onOpenLesson }) {
           </div>
         </div>
       )}
+
+      {/* ==================== TAB 4: 已读论文与个人理解（Paper Notes） ==================== */}
+      {activeTab === 'papers' && (
+        <div className="space-y-6">
+          {/* Top Bar */}
+          <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-emerald-500/10 via-sky-500/5 to-transparent p-5 space-y-4">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="inline-flex items-center gap-2 text-xs font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
+                  <BookOpenCheck className="w-4 h-4" />
+                  <span>PAPER NOTES · 已精读 {readPapers.length} 篇系统/芯片顶会论文</span>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">
+                  已读论文与个人理解（Paper Notes）
+                </h2>
+                <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300">
+                  拒绝干巴巴的论文摘要翻译：每篇均独立高亮「个人理解、算账推导、批判性思考与对应实测关卡联动」。
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setJsonPreviewTarget('papers');
+                    setJsonPreviewInput(JSON.stringify(readPapers, null, 2));
+                    setJsonPreviewError('');
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:border-emerald-400"
+                >
+                  <Upload className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>本地 JSON 预览导入</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickCopy('paper-tpl', PAPER_NOTE_TEMPLATE)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition-colors"
+                >
+                  {copiedId === 'paper-tpl' ? (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>已复制新增论文 JSON 模板</span>
+                    </>
+                  ) : (
+                    <>
+                      <ClipboardCopy className="w-3.5 h-3.5" />
+                      <span>复制新增论文模板</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div className="flex flex-wrap gap-1.5">
+                {PAPER_DOMAINS.map((dom) => (
+                  <button
+                    key={dom}
+                    type="button"
+                    onClick={() => setPaperDomainFilter(dom)}
+                    className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${
+                      paperDomainFilter === dom
+                        ? 'bg-emerald-500 text-slate-950 border-emerald-400 font-semibold'
+                        : 'bg-white dark:bg-[#0B1120] text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-800 hover:border-emerald-400/50'
+                    }`}
+                  >
+                    {dom}
+                  </button>
+                ))}
+              </div>
+
+              <div className="relative w-full md:w-72">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={paperSearch}
+                  onChange={(e) => setPaperSearch(e.target.value)}
+                  placeholder="搜索论文标题、顶会或算账关键词..."
+                  className="w-full pl-8 pr-7 py-2 rounded-xl text-xs border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B1120] text-slate-900 dark:text-white"
+                />
+                {paperSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setPaperSearch('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Paper Cards */}
+          <div className="space-y-6">
+            {filteredPapers.map((p) => (
+              <article
+                key={p.id}
+                className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0B1120]/95 overflow-hidden shadow-sm"
+              >
+                {/* Upper Zone: Objective Metadata */}
+                <div className="p-5 sm:p-6 space-y-3 border-b border-slate-100 dark:border-slate-800/80">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="px-2.5 py-0.5 rounded bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-500/30 font-bold">
+                        {p.venue}
+                      </span>
+                      <span className="px-2.5 py-0.5 rounded bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 font-semibold">
+                        {p.domain}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-400">
+                      <span>创建于：{p.created_at}</span>
+                      <span>修改于：{p.updated_at}</span>
+                      {p.paper_url && (
+                        <a
+                          href={p.paper_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-sky-500 hover:underline font-semibold"
+                        >
+                          <span>原文链接</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">
+                      {p.title_zh}
+                    </h3>
+                    <p className="text-xs font-mono text-slate-500 dark:text-slate-400 mt-0.5">
+                      {p.title_en}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl bg-slate-50 dark:bg-[#060A13]/85 border border-slate-200/80 dark:border-slate-800 p-3 text-xs text-slate-700 dark:text-slate-300">
+                    <strong className="text-rose-500 mr-1">核心瓶颈：</strong>
+                    {p.core_bottleneck}
+                  </div>
+                </div>
+
+                {/* Lower Zone: Highlighted Personal Understanding & Critical Thinking */}
+                <div className="p-5 sm:p-6 bg-emerald-500/[0.04] dark:bg-emerald-950/15 border-l-4 border-l-emerald-400 space-y-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-xs font-mono font-bold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider">
+                      个人理解与批判性思考 · PERSONAL INSIGHTS
+                    </span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {(p.related_labs || []).map((lvl) => (
+                        <button
+                          key={lvl}
+                          type="button"
+                          onClick={() => handleJumpToLabByLevel(lvl)}
+                          className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-500/30 hover:bg-sky-500/25"
+                        >
+                          联动 {lvl} 实战 ↗
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-3.5 text-xs leading-relaxed">
+                    <div className="rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800 p-3.5 space-y-1">
+                      <div className="font-mono font-bold text-sky-600 dark:text-sky-400">核心直觉</div>
+                      <p className="text-slate-700 dark:text-slate-200">{p.personal_understanding?.intuition}</p>
+                    </div>
+                    <div className="rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800 p-3.5 space-y-1">
+                      <div className="font-mono font-bold text-emerald-600 dark:text-emerald-400">底层性能算账</div>
+                      <p className="text-slate-700 dark:text-slate-200">{p.personal_understanding?.perf_math}</p>
+                    </div>
+                    <div className="rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800 p-3.5 space-y-1">
+                      <div className="font-mono font-bold text-amber-600 dark:text-amber-400">局限性与延伸思考</div>
+                      <p className="text-slate-700 dark:text-slate-200">{p.personal_understanding?.critique_and_thought}</p>
+                    </div>
+                    <div className="rounded-xl bg-white/80 dark:bg-slate-900/70 border border-slate-200/80 dark:border-slate-800 p-3.5 space-y-1">
+                      <div className="font-mono font-bold text-indigo-600 dark:text-indigo-400">实测复现关联</div>
+                      <p className="text-slate-700 dark:text-slate-200">{p.personal_understanding?.lab_link_note}</p>
+                    </div>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Local JSON Preview Import Modal */}
+      {jsonPreviewTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/75 backdrop-blur-sm"
+          onClick={() => setJsonPreviewTarget(null)}
+        >
+          <div
+            className="w-full max-w-2xl rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#0B1120] shadow-2xl p-5 sm:p-6 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-base text-slate-900 dark:text-white">
+                本地 JSON 预览导入（{jsonPreviewTarget === 'bench' ? 'bench-logs.json' : 'read-papers.json'}）
+              </h3>
+              <button
+                type="button"
+                onClick={() => setJsonPreviewTarget(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <p className="text-xs text-slate-500">
+              在推送 GitHub（`[skip netlify]`）前，直接在此粘贴修改后的 JSON 实时预览网页排版效果。
+            </p>
+            <textarea
+              rows={11}
+              value={jsonPreviewInput}
+              onChange={(e) => setJsonPreviewInput(e.target.value)}
+              className="w-full p-3 rounded-xl text-xs font-mono border border-slate-200 dark:border-slate-800 bg-slate-950 text-emerald-300"
+            />
+            {jsonPreviewError && (
+              <div className="text-xs font-mono text-rose-500">{jsonPreviewError}</div>
+            )}
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setJsonPreviewTarget(null)}
+                className="px-4 py-2 rounded-xl text-xs border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300"
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                onClick={handleApplyJsonPreview}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-sky-500 hover:bg-sky-400 text-slate-950"
+              >
+                应用预览
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Deep-Dive Q&A Modal */}
+      <DeepDiveQaModal isOpen={qaModalOpen} onClose={() => setQaModalOpen(false)} />
     </div>
   );
 }

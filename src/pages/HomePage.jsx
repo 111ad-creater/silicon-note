@@ -17,6 +17,7 @@ import {
   Star,
 } from 'lucide-react';
 import { CURRICULUM_STAGES } from '../data/curriculum';
+import LearningHeatmap from '../components/LearningHeatmap';
 
 const MODULE_ICONS = [
   Cpu,
@@ -397,6 +398,9 @@ export default function HomePage({
           </div>
         </div>
       </section>
+
+      {/* 26-Week Chip-Green Learning Heatmap */}
+      <LearningHeatmap completedCount={completedCount} />
     </div>
   );
 }

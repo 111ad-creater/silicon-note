@@ -28,6 +28,7 @@ export const BENCHMARK_REPORT_TEMPLATE = `# [模型名] 在 [GPU 型号] 上的�
 export const TRAINING_TASKS = [
   {
     id: 'lab-0-nano-gpt',
+    labLevel: 'L0',
     stepNumber: 0,
     shortName: 'L0 热身',
     title: '手写极简 GPT，看透逐 Token 生成',
@@ -61,6 +62,7 @@ export const TRAINING_TASKS = [
   },
   {
     id: 'lab-1-vllm-oom',
+    labLevel: 'L1',
     stepNumber: 1,
     shortName: '实战 1',
     title: 'AutoDL 部署 vLLM 与 OOM 复现排障',
@@ -120,6 +122,7 @@ curl http://localhost:8000/v1/chat/completions \\
   },
   {
     id: 'lab-2-roofline-mbu',
+    labLevel: 'L2',
     stepNumber: 2,
     shortName: '实战 2',
     title: '手写大模型“纸面算账”与 MBU 校验脚本',
@@ -181,6 +184,7 @@ if __name__ == "__main__":
   },
   {
     id: 'lab-3-awq-prefix',
+    labLevel: 'L3',
     stepNumber: 3,
     shortName: '实战 3',
     title: '量化（AWQ/FP8）与前缀缓存 A/B 对照评测',
@@ -232,6 +236,7 @@ vllm bench serve \\
   },
   {
     id: 'lab-4-nsys-bubble',
+    labLevel: 'L4',
     stepNumber: 4,
     shortName: '实战 4',
     title: 'Nsight Systems (nsys) “抓气泡”破案演练',
@@ -294,6 +299,7 @@ print(f"BUG_MODE={BUG_MODE} | 总耗时: {(time.perf_counter() - t0)*1000:.2f} m
   },
   {
     id: 'lab-5-triton-softmax',
+    labLevel: 'L5',
     stepNumber: 5,
     shortName: '实战 5',
     title: '用 OpenAI Triton 写你的第一个融合算子',
@@ -370,6 +376,7 @@ print(f"Triton 实测有效带宽: {bytes_rw / (t_triton / 1000):.1f} GB/s")`,
   },
   {
     id: 'lab-35-nano-vllm',
+    labLevel: 'L3.5',
     stepNumber: '3.5',
     shortName: 'L3.5 进阶',
     title: '手改 Nano-vLLM & 复现真实工程瓶颈',
@@ -427,6 +434,7 @@ vllm bench serve --model Qwen/Qwen2.5-7B-Instruct --num-prompts 100 --max-concur
   },
   {
     id: 'lab-6-benchmark-portfolio',
+    labLevel: 'L6',
     stepNumber: 6,
     shortName: '实战 6',
     title: '打包大厂级“端到端性能评测”作品集与报告模板',

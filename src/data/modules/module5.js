@@ -54,7 +54,7 @@ export const module5 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '理解 Prefill 和 Decode 的本质割裂，是看懂现代所有大模型推理优化（Chunked Prefill、Continuous Batching、PD 分离）的总开关。任何优化方案，你都要先问一句：“它优化的是 Prefill 的算力，还是 Decode 的带宽？”',
+            '理解 Prefill vs Decode 的本质割裂——一个是算力密集 GEMM，一个是基于 Autoregressive Decoding（自回归解码）的带宽密集 GEMV——是看懂现代所有大模型推理优化（Chunked Prefill、Continuous Batching、PD 分离）的总开关。任何优化方案，你都要先问一句：“它优化的是 Prefill 的算力，还是 Decode 的带宽？”\n核心工程表达：大模型推理呈 Prefill vs Decode 双相异构特征，前者受限于 GEMM 算力（主导 TTFT），后者受限于 Autoregressive Decoding（自回归解码）下的显存搬运带宽（主导 TPOT）。',
         },
         {
           type: 'quiz',
@@ -117,7 +117,7 @@ export const module5 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '作为集成电路专业视角，vLLM 是极其经典的“软硬件协同”范例——HBM 物理容量一时变不了，但通过绝妙的底层显存分页与调度算法，硬生生让同一块 GPU 的并发接待能力翻了好几倍。云端实测时，调好 `gpu_memory_utilization` 和 `max_num_seqs` 参数能直接看到吞吐飙升。',
+            '作为集成电路专业视角，vLLM 是极其经典的“软硬件协同”范例——通过 Non-contiguous Physical Allocation（非连续物理显存分配）与页表级 Block Table / Fragmentation（内外碎片）治理，硬生生在不改 HBM 容量的前提下释放并发；再叠加 Continuous Batching（连续批处理）与 Prefix Caching / RadixAttention 前缀复用，云端实测时调好 `gpu_memory_utilization` 和 `max_num_seqs` 参数就能直接看到吞吐飙升。\n核心工程表达：现代推理调度通过 Paged KV Cache（Non-contiguous Physical Allocation + Block Table）消除 Fragmentation（内外碎片），并以 Continuous Batching 与 Prefix Caching / RadixAttention 榨干并发与命中率。',
         },
         {
           type: 'quiz',
@@ -175,7 +175,7 @@ export const module5 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            'FlashAttention 是 AI 芯片领域“IO-Aware（访存感知算法）”的封神之作。它甚至在反向传播时故意“扔掉中间矩阵、需要时重新算一遍”——宁可多花一点廉价的算力（FLOPs），也绝不多走一趟昂贵的 HBM 走廊！',
+            'GQA / MLA（多头潜在注意力）负责从模型结构源头压缩 KV Cache 体积，而 FlashAttention 则是 AI 芯片领域基于 IO-Aware Tiling / Online Softmax（访存感知分块与在线归约）的封神之作。它甚至在反向传播时故意“扔掉中间矩阵、需要时重新算一遍”——宁可多花廉价的 Tensor Core 算力（FLOPs），也绝不多走一趟昂贵的 HBM 走廊！\n核心工程表达：注意力软硬协同围绕两条主轴展开——结构侧用 GQA / MLA（多头潜在注意力）压缩 KV 体积，算子侧靠 IO-Aware Tiling / Online Softmax 将 O(N²) HBM 读写锁进片上 SRAM。',
         },
         {
           type: 'quiz',
@@ -233,7 +233,7 @@ export const module5 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '注意投机采样的“并发天花板”：它在低并发（Batch 很小，GPU 算力严重过剩）时能轻松提速 2~3 倍；但在极高并发（大 Batch 下 GPU 算力已经被打满）时，强行并行批改多个草稿反而会争抢算力导致变慢！',
+            '注意 Speculative Decoding / MTP（投机采样与多词元预测）的“并发天花板”：它在低并发（Batch 很小，GPU 算力严重过剩）时能通过一次矩阵验证多个草稿 Token 轻松提速 2~3 倍；但在极高并发（大 Batch 下 GPU 算力已经被打满）时，强行并行批改多个草稿反而会争抢计算单元导致延迟恶化！\n核心工程表达：Speculative Decoding / MTP 用低并发场景下的富余 Compute Budget 换取 Decode 访存复用率，其收益边界受算术强度拐点与 Draft Acceptance Rate（接受率）双重约束。',
         },
         {
           type: 'quiz',
@@ -291,7 +291,7 @@ export const module5 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            'PD 分离能跑得比混布更划算，有一个关键前提——KV Cache 不能太大！如果用传统 MHA，跨机传一份 10 万字的 KV Cache 要十几 GB，网线直接堵爆；正是因为有了 GQA 和 DeepSeek MLA 把草稿纸压薄了 90%，PD 分离才真正迎来了大规模工业爆发。',
+            'PD Disaggregation（PD 分离，即 Prefill 与 Decode 节点解耦）能跑得比混布更划算，有一个关键前提——KV Cache 跨节点传输体积不能太大！如果用传统 MHA，跨机传一份 10 万字的 KV Cache 要十几 GB，RDMA 链路直接堵爆；正是因为 GQA 和 DeepSeek MLA 把草稿纸压薄了 90%，PD Disaggregation 才真正迎来了大规模工业爆发。\n核心工程表达：PD Disaggregation（PD 分离）消除了长 Prefill 对在线 Decode 的尾部延迟干扰，其经济性高度依赖 MLA/GQA 压缩与高速 RDMA KV 迁移吞吐。',
         },
         {
           type: 'quiz',
@@ -350,7 +350,7 @@ export const module5 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            'MoE 是“算力平权”的大杀器：它用 37B 的推理算力代价，换出了超越数百 B 稠密模型的顶级智商。但在工程落地时，它对系统架构师提出了最高要求——如何用超大规模专家并行（EP）配合双微批次重叠（Dual-Batch Overlap）把沉重的跨机 All-to-All 通信彻底藏起来。',
+            'MoE 是“算力平权”的大杀器：它用 37B 的激活算力代价换出超越数百 B 稠密模型的智商，但在工程落地时最头疼 MoE Routing / Load Imbalance（专家负载不均，热门专家排队而冷门专家闲置导致木桶效应）以及跨机 All-to-All 通信。必须靠专家并行（EP）+ 辅助均衡调度与双微批次重叠（Dual-Batch Overlap）把沉重通信彻底藏起来。\n核心工程表达：MoE 架构落地的关键在于抑制 MoE Routing / Load Imbalance（专家负载不均）引发的通信热点与尾部掉队，并以 EP + Dual-Batch Overlap 掩盖 All-to-All 开销。',
         },
         {
           type: 'quiz',
@@ -410,7 +410,7 @@ export const module5 = {
           title: '高频压测与简历项目配方',
           copyText: `vllm serve Qwen/Qwen2.5-7B-Instruct --max-model-len 8192\nvllm bench serve --model Qwen/Qwen2.5-7B-Instruct --num-prompts 100 --max-concurrency 16`,
           content:
-            '1. 启动服务：`vllm serve Qwen/Qwen2.5-7B-Instruct --max-model-len 8192`\n2. 并发压测：`vllm bench serve --model Qwen/Qwen2.5-7B-Instruct --num-prompts 100 --max-concurrency 16`\n3. 镇站文章：同卡对比 vLLM vs SGLang 多轮对话 P99 延迟，再用 AI 带着写 30 行 Triton Fused Softmax 测有效带宽提升！',
+            '1. 启动服务：`vllm serve Qwen/Qwen2.5-7B-Instruct --max-model-len 8192`\n2. 并发压测：`vllm bench serve --model Qwen/Qwen2.5-7B-Instruct --num-prompts 100 --max-concurrency 16`\n3. 镇站文章：同卡对比 vLLM vs SGLang 多轮对话（Prefix Caching / RadixAttention 命中场景）P99 延迟，再用 AI 带着写 30 行 Triton Fused Softmax 测有效带宽提升！\n核心工程表达：工程化推理简历项目的黄金验证闭环是在可控 SLO 下对照 vLLM / SGLang 的 Prefix Caching 命中率、TTFT/TPOT 帕累托曲线与自定义融合算子收益。',
         },
         {
           type: 'quiz',
@@ -478,7 +478,7 @@ export const module5 = {
           variant: 'engineer',
           title: '面试降维打击话术',
           content:
-            '当面试官问“你平时怎么看 KV Cache 或大模型推理瓶颈？”时，先答基础的「PagedAttention + Prefill/Decode 冲突」，再顺手补一句：“而在 2026 年多轮 Agent 和 RL 后训练场景下，瓶颈已经进一步漂移到了外部 KV 池化的 Storage I/O 墙，以及 RL Rollout 的长尾木桶效应”——瞬间展现远超本科生的工业界一线视野！',
+            '当面试官问“你平时怎么看 KV Cache 或大模型推理瓶颈？”时，先答基础的「PagedAttention + Prefill/Decode 冲突」，再顺手补一句：“而在 2026 年多轮 Agent 和 RL 后训练场景下，瓶颈已经进一步漂移到了外部 KV 池化的 Storage I/O 墙，以及 RL Rollout 的长尾木桶效应”——瞬间展现远超本科生的工业界一线视野！\n核心工程表达：面向长程 Agent 与 RL Rollout 的前沿系统演进核心在于解决 KVCache Offloading（HBM -> Host/NVMe）的 Storage I/O 吞吐瓶颈与异构长尾步长同步。',
         },
         {
           type: 'quiz',

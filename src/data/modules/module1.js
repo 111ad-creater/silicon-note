@@ -55,7 +55,7 @@ export const module1 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '大模型推理并不是不需要 CPU。在真实集群里，CPU 负责接收请求、分词（Tokenization）和下发指令，GPU 负责暴力算矩阵。排障时常见一种假象：GPU 利用率上不去，不是 GPU 慢，而是 CPU 预处理和发任务太慢，导致几千名“小学生”干坐着等发卷子（CPU-Bound）。',
+            '大模型推理并不是不需要 CPU。在真实集群里，CPU 负责接收请求、分词（Tokenization）和下发指令，GPU 负责暴力算矩阵；整卡还受制于 TDP（热设计功耗）预算，一旦散热受限触发 Thermal Throttling（热节流）降频，算力就会瞬间掉档。排障时常见一种假象：GPU 利用率上不去，不是 GPU 慢，而是 CPU 预处理和发任务太慢，导致几千名“小学生”干坐着等发卷子（CPU-Bound）。\n核心工程表达：芯片选型本质是 Silicon Area & TDP Budget（硅片面积与功耗预算）下 Control Logic 与 Compute Density（控制逻辑与计算密度）的权衡。',
         },
         {
           type: 'quiz',
@@ -77,7 +77,7 @@ export const module1 = {
         { type: 'heading', text: '核心直觉' },
         {
           type: 'paragraph',
-          text: 'GPU 内部像一座管理极严的超级工厂：SM（流多处理器）是上百个独立车间；每个车间里工人每 32 人编成一个军训方阵（Warp）；教官（调度器）喊一声口令，32 个人必须同时执行完全相同的动作，只是手里拿的数据不同，这就是 SIMT（单指令多线程）。',
+          text: 'GPU 内部像一座管理极严的超级工厂：SM（流多处理器）是上百个独立车间；每个车间里工人每 32 人编成一个军训方阵（Warp）；Warp Scheduler（线程束调度器）喊一声口令，32 个人必须同时执行完全相同的动作，只是手里拿的数据不同，这就是 SIMT 执行模型（单指令多线程）。如果代码里写了太多 if/else 让同方阵线程走不同路径，就会发生 Warp Divergence（分支发散），串行轮流执行直接腰斩有效吞吐。',
         },
         { type: 'heading', text: '底层机制拆解' },
         {
@@ -114,7 +114,7 @@ export const module1 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '在 Nsight 等性能剖析工具中，Occupancy（占用率）衡量每个 SM 车间里塞进了多少活跃 Warp。如果单线程占用寄存器太多导致占用率过低，备用方阵数量不足，一旦大家都在等显存，GPU 就会出现大量空转停顿。',
+            '在 Nsight 等性能剖析工具中，Occupancy（占用率）衡量每个 SM 车间里塞进了多少活跃 Warp。GPU 靠海量活跃 Warp 零开销切换实现 Latency Hiding（延迟隐藏）：当一个 Warp 等显存返回时，Warp Scheduler（线程束调度器）立刻切去执行下一个就绪 Warp。如果单线程占用寄存器太多导致占用率过低，备用方阵不足，GPU 就会暴露大量 Stall（停顿）。\n核心工程表达：GPU 依赖 SIMT 执行模型与高 Occupancy 实现 Latency Hiding（延迟隐藏），同时需警惕 Warp Divergence（分支发散）导致的流水线空转。',
         },
         {
           type: 'quiz',
@@ -171,7 +171,7 @@ export const module1 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            'Tensor Core 极其挑食，要求输入矩阵的长宽维度最好是 8 或 16 的整数倍（FP8 下甚至要求 32 对齐）。排障时若发现某个 Linear 层莫名其妙慢了几倍，先检查维度是不是 1023 这类非对齐“奇葩数字”——未对齐会导致硬件无法打满甚至退回 CUDA Core。',
+            'Tensor Core MMA（Matrix Multiply-Accumulate）指令极其挑食，要求输入矩阵的长宽维度最好是 8 或 16 的整数倍（FP8 下甚至要求 32 对齐）；配合 2:4 Structured Sparsity（结构化稀疏，每 4 个权重至少 2 个为零并压缩索引），峰值算力还能再翻倍。排障时若发现某个 Linear 层莫名其妙慢了几倍，先检查维度是不是 1023 这类非对齐“奇葩数字”——未对齐会导致硬件无法走满 Tensor Core MMA 甚至退回 CUDA Core。\n核心工程表达：Tensor Core MMA 通过粗粒度矩阵乘加与 2:4 Structured Sparsity（结构化稀疏）压榨单位面积计算密度，强依赖矩阵维度内存对齐。',
         },
         {
           type: 'quiz',
@@ -230,7 +230,7 @@ export const module1 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '脉动阵列有一个天生的“填充/排空开销（Pipeline Fill/Drain）”。如果矩阵太小或者 Batch Size 只有 1，128×128 的巨大阵列大部分格子都在空转。因此 TPU 极度依赖 XLA 编译器把算子拼大、把 Batch 凑齐，才能发挥恐怖的性价比。',
+            'Google TPU 的 Systolic Array（脉动阵列）核心精髓是精妙的 Dataflow（数据流复用，如 Weight-Stationary 权重驻留），让部分和与激活值在计算单元间直接接力，省掉反复读写寄存器和 SRAM 的功耗；但它也有天生的“填充/排空开销（Pipeline Fill/Drain）”。如果矩阵太小或者 Batch Size 只有 1，128×128 阵列大部分格子都在空转，因此 TPU 极度依赖 XLA 编译器把算子拼大、把 Batch 凑齐。\n核心工程表达：Systolic Array（脉动阵列）通过脉动 Dataflow（数据流复用）最大化片上数据重用，以编译器确定性调度换取极致能效比。',
         },
         {
           type: 'quiz',
@@ -288,7 +288,7 @@ export const module1 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '看懂多元算力的核心方法是问三个问题：它的矩阵引擎长什么样？它的显存带宽和容量有多大？它的软件栈（CUDA/ROCm/CANN）能不能让开源模型一键跑满？很多国产芯片纸面峰值算力不输英伟达，实际跑慢往往卡在软件栈算子融合和通信库上。',
+            '看懂多元算力的核心方法是问三个问题：它的矩阵引擎（Tensor Core / Cube / Systolic）长什么样？它的片上 SRAM 与显存带宽多大？它的软件栈（CUDA/ROCm/CANN）与编译器能不能让开源模型一键跑满？很多芯片纸面峰值算力（TFLOPS）不输主流方案，实际实测偏慢往往卡在算子融合与集合通信库上。\n核心工程表达：算力芯片竞争不只看峰值 TFLOPS，核心在矩阵微架构、片外带宽与编译器/通信库全栈软件生态。',
         },
         {
           type: 'quiz',
@@ -346,7 +346,7 @@ export const module1 = {
           variant: 'engineer',
           title: '性能工程师“算账”视角',
           content:
-            '在端侧跑大模型，几乎 100% 死在 LPDDR 内存带宽墙上。算一笔简单的账：手机 LPDDR5X 带宽约 60 GB/s，跑一个 4-bit 量化的 7B 模型（权重约 4GB），哪怕带宽跑满 100%，理论极限吐字速度也只有 60 / 4 = 15 tokens/s。',
+            '端侧设备受严格功耗包络（如手机整机几瓦级、智驾芯片数十瓦 TDP）限制，一旦持续高负载立刻触发 Thermal Throttling（热节流）强制降频；同时在端侧跑大模型几乎 100% 死在 LPDDR 内存带宽墙上。算一笔简单的账：手机 LPDDR5X 带宽约 60 GB/s，跑一个 4-bit 量化的 7B 模型（权重约 4GB），哪怕带宽跑满 100%，理论极限吐字速度也只有 60 / 4 = 15 tokens/s。\n核心工程表达：边缘与端侧 NPU 受制于 TDP / Thermal Throttling（热节流）与 LPDDR 带宽上限，推理速度由有效访存带宽与权重量化体积共同封顶。',
         },
         {
           type: 'quiz',
@@ -407,7 +407,7 @@ export const module1 = {
           copyText:
             '请用 150 行 Python 帮我写一个极简的“片上 SRAM + Tensor Core 矩阵乘阵列”事务级耗时模拟器（Golden Model）：输入矩阵维度 (M, K, N)、片上 SRAM 容量(MB)、HBM 带宽(TB/s) 和峰值算力(TFLOPS)，自动按 Tiling 分块计算搬运耗时与计算耗时，输出瓶颈归属和加速建议。',
           content:
-            '想入门「GPU 架构建模」，完全不需要先啃百万行 gem5 代码！直接让 AI 带着你用 150 行 Python 写一个极简的“SRAM + 矩阵乘阵列”耗时模拟器，输入模型维度和带宽自动输出瓶颈分析，就能亲手跑出你的第一个微缩版 Golden Model。',
+            '想入门「GPU 架构建模」，完全不需要先啃百万行 gem5 代码！直接让 AI 带着你用 150 行 Python 写一个极简的“SRAM + 矩阵乘阵列”耗时模拟器，输入模型维度、Dataflow（数据流复用）策略和带宽，就能亲手跑出你的第一个微缩版 Golden Model。\n核心工程表达：Golden Model（黄金参考模型）与 Timeloop 等事务级仿真可在 RTL 流片前完成 Dataflow、Tiling 与存储带宽瓶颈的量化 DSE（设计空间探索）。',
         },
         {
           type: 'quiz',

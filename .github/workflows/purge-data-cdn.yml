@@ -1,0 +1,15 @@
+name: Purge jsDelivr on Manual JSON Edit
+
+on:
+  push:
+    paths:
+      - 'public/data/bench-logs.json'
+      - 'public/data/read-papers.json'
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          curl -s "https://purge.jsdelivr.net/gh/${GITHUB_REPOSITORY}@main/public/data/bench-logs.json" || true
+          curl -s "https://purge.jsdelivr.net/gh/${GITHUB_REPOSITORY}@main/public/data/read-papers.json" || true

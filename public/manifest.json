@@ -1,0 +1,17 @@
+{
+  "name": "SiliconNote · AI 芯片与系统直觉图鉴",
+  "short_name": "SiliconNote",
+  "description": "面向 IC 本科生与 AI 系统工程师的交互式芯片架构、Roofline 与大模型推理工作台",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#060A13",
+  "theme_color": "#0F172A",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}
