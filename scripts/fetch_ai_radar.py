@@ -1,5 +1,6 @@
 import os
 import json
+import time
 import urllib.request
 import urllib.error
 from datetime import datetime, timezone, timedelta
@@ -55,10 +56,11 @@ def list_gemini_flash_models():
 
 def call_gemini_generate(payload):
     candidates = [
-        "gemini-2.5-flash",
         "gemini-3.8-flash",
         "gemini-3.7-flash",
+        "gemini-3.8-flash-lite",
         "gemini-3.5-flash-lite",
+        "gemini-2.5-flash",
     ]
     tried = set()
     last_err = None
@@ -70,17 +72,22 @@ def call_gemini_generate(payload):
                 continue
             tried.add(model_id)
             url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent"
-            try:
-                return post_json(url, payload, {"x-goog-api-key": GEMINI_API_KEY})
-            except urllib.error.HTTPError as e:
-                body = ""
+            for attempt in range(2):
                 try:
-                    body = e.read().decode("utf-8", errors="ignore")[:300]
-                except Exception:
-                    pass
-                print(f"[Warn] Gemini model {model_id} HTTP {e.code}: {body}")
-                last_err = e
-                if e.code not in (400, 404):
+                    return post_json(url, payload, {"x-goog-api-key": GEMINI_API_KEY})
+                except urllib.error.HTTPError as e:
+                    body = ""
+                    try:
+                        body = e.read().decode("utf-8", errors="ignore")[:300]
+                    except Exception:
+                        pass
+                    print(f"[Warn] Gemini model {model_id} (try {attempt + 1}) HTTP {e.code}: {body}")
+                    last_err = e
+                    if e.code in (429, 500, 502, 503, 504) and attempt == 0:
+                        time.sleep(3)
+                        continue
+                    if e.code in (400, 404, 429, 500, 502, 503, 504):
+                        break
                     raise
         return None
 

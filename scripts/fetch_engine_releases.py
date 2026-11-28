@@ -38,7 +38,13 @@ def summarize_release_zh(name, version, notes):
         "generationConfig": {"temperature": 0.1},
     }
     data = json.dumps(payload).encode("utf-8")
-    for model_id in ("gemini-2.5-flash", "gemini-3.8-flash", "gemini-3.7-flash"):
+    for model_id in (
+        "gemini-3.8-flash",
+        "gemini-3.7-flash",
+        "gemini-3.8-flash-lite",
+        "gemini-3.5-flash-lite",
+        "gemini-2.5-flash",
+    ):
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent"
         req = urllib.request.Request(
             url,
