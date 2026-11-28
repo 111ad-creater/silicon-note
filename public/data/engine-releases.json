@@ -1,55 +1,55 @@
 {
-  "updated_at": "2026-11-28 16:00 (UTC+8)",
+  "updated_at": "2026-11-28 12:04 (UTC+8)",
   "engines": [
     {
       "id": "vllm",
       "name": "vLLM",
       "repo": "vllm-project/vllm",
-      "latest_version": "v0.8.4",
-      "released_at": "2026-11-25",
+      "latest_version": "v0.34.0",
+      "released_at": "2026-11-16",
       "category": "通用推理引擎",
-      "highlights_zh": "增强 V1 引擎异步调度器、默认启用 Chunked Prefill，并优化 FP8 KV Cache 与 NIXL 分离式传输吞吐。",
-      "url": "https://github.com/vllm-project/vllm/releases"
+      "highlights_zh": "v0.34.0 废弃旧版 Runner 并默认启用动态 KV 缓存，结合块大小调整与硬件优化，显著提升了吞吐量与长提示词首字延迟。",
+      "url": "https://github.com/vllm-project/vllm/releases/tag/v0.34.0"
     },
     {
       "id": "sglang",
       "name": "SGLang",
       "repo": "sgl-project/sglang",
-      "latest_version": "v0.4.6",
-      "released_at": "2026-11-24",
+      "latest_version": "v0.5.23",
+      "released_at": "2026-11-02",
       "category": "高并发 / RadixAttention",
-      "highlights_zh": "优化多节点 MoE 大规模专家并行（EP）与 Zero-Overhead CPU 调度器，大幅压低多轮 Agent 场景 P99 TTFT。",
-      "url": "https://github.com/sgl-project/sglang/releases"
+      "highlights_zh": "SGLang v0.5.23 新增支持多款主流大模型与扩散模型，并通过硬件内核优化大幅提升了 DeepSeek 模型的吞吐量与首字延迟。（46字，超字数了。精简版见下）\n\nSGLang v0.5.23 新增支持多款主流模型，并通过内核优化大幅提升了 DeepSeek 模型的吞吐量与首字延迟。（42字）",
+      "url": "https://github.com/sgl-project/sglang/releases/tag/v0.5.23"
     },
     {
       "id": "triton",
       "name": "OpenAI Triton",
       "repo": "triton-lang/triton",
-      "latest_version": "v3.3.0",
-      "released_at": "2026-11-18",
+      "latest_version": "v3.9.0",
+      "released_at": "2026-10-27",
       "category": "块级算子编译器",
-      "highlights_zh": "强化 Blackwell MXFP4 / TMA 异步张量拷贝原语支持，并改善 AMD/异构后端寄存器溢出调度。",
-      "url": "https://github.com/triton-lang/triton/releases"
+      "highlights_zh": "Triton v3.9.0 引入了原子读写轮询、近似浮点除法等前端特性，并优化了后端编译器与多硬件平台支持。",
+      "url": "https://github.com/triton-lang/triton/releases/tag/v3.9.0"
     },
     {
       "id": "tilelang",
       "name": "TileLang",
       "repo": "tile-ai/tilelang",
-      "latest_version": "v0.1.5",
-      "released_at": "2026-11-22",
+      "latest_version": "v0.1.16",
+      "released_at": "2026-11-27",
       "category": "异构块级算子语言",
-      "highlights_zh": "新增对稀疏块级注意力（NSA / Block-Sparse）与多款国产 NPU 片上 SRAM 双缓冲模板的原生代码生成支持。",
-      "url": "https://github.com/tile-ai/tilelang/releases"
+      "highlights_zh": "TileLang v0.1.16 引入昇腾 PTO 与扩展 CuTeDSL 后端，升级 JIT 编译缓存与跨平台硬件指令，全面优化多后端性能。",
+      "url": "https://github.com/tile-ai/tilelang/releases/tag/v0.1.16"
     },
     {
       "id": "llama-cpp",
       "name": "llama.cpp",
       "repo": "ggml-org/llama.cpp",
-      "latest_version": "b5210",
-      "released_at": "2026-11-27",
+      "latest_version": "v1.1.0",
+      "released_at": "2026-11-26",
       "category": "端侧 / GGUF 引擎",
-      "highlights_zh": "优化统一内存与 Vulkan/CANN 异构后端的 W4A16 矩阵乘内核，进一步降低端侧 Decode 内存带宽压力。",
-      "url": "https://github.com/ggml-org/llama.cpp/releases"
+      "highlights_zh": "llama.cpp v1.1.0 扩展了多模态音频与新模型支持，升级 GGML 至 v1.1.1，重构批处理与量化 API 并优化服务端调度。",
+      "url": "https://github.com/ggml-org/llama.cpp/releases/tag/v1.1.0"
     },
     {
       "id": "nano-vllm",
