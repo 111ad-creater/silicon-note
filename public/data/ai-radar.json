@@ -1,24 +1,24 @@
 {
-  "updated_at": "2026-11-28 12:03 (UTC+8)",
-  "total_count": 5,
+  "updated_at": "2026-11-28 21:45 (UTC+8)",
+  "total_count": 3,
   "items": [
     {
       "id": "radar-1",
       "category": "ai_chip",
       "verification": "official",
-      "title_zh": "华为拟发布新型高带宽内存设计",
-      "summary_zh": "华为计划在 ISSCC 会议上展示一种新型高带宽内存（HBM）设计，其数据引脚密度达到三星和SK海力士量产芯片的两倍。该技术若能落地，将有助于缓解国内AI芯片的高带宽内存短缺问题。",
-      "original_en": "Huawei is set to present a high-bandwidth memory design with double the data pin density of chips Samsung and SK Hynix mass-produce.",
-      "source_platform": "Official Blog",
-      "author_handle": "@TheNextWeb",
-      "image_url": "https://developer-blogs.nvidia.com/wp-content/uploads/2026/07/nvidia-rubin-gpu-chip-architecture-1.webp",
-      "source_url": "https://thenextweb.com/news/huawei-hbm-ai-memory-samsung-sk-hynix-isscc",
-      "published_at": "2026-11-27 02:28",
+      "title_zh": "多推理实例共享KV缓存池技术",
+      "summary_zh": "该技术实现了服务实例间的共享KV缓存池，在AMD集成支持下前缀重用率超过95%。并提供针对vLLM、TensorRT-LLM及LMDeploy的原生连接器。",
+      "original_en": "Shared KV cache pooling across serving instances • Prefix reuse above 95% with AMD integration • Native connectors for vLLM, TensorRT-LLM, LMDeploy.",
+      "source_platform": "X (Twitter)",
+      "author_handle": "@the_osps",
+      "image_url": "https://pbs.twimg.com/media/HIySt_uXkAAL3dt.jpg",
+      "source_url": "https://x.com/the_osps/status/2124218055601668464",
+      "published_at": "",
       "tags": [
-        "AI芯片",
-        "HBM",
-        "华为",
-        "存储技术"
+        "KV Cache",
+        "AMD",
+        "vLLM",
+        "TensorRT-LLM"
       ],
       "model_spec": null
     },
@@ -26,19 +26,19 @@
       "id": "radar-2",
       "category": "ai_chip",
       "verification": "unverified",
-      "title_zh": "上海数据中心出现英伟达Blackwell芯片",
-      "summary_zh": "据彭博社报道，上海某数据中心（长江三角洲项目）被发现安装了英伟达高端的 Blackwell 架构芯片（如 GB300 NVL72 硬件机架）。相关企业曾将其作为贷款抵押物，引发外界对出口管制执行情况的关注。",
-      "original_en": "A Chinese data center with ties to Alice Huang... has installed hardware with Nvidia’s powerful Blackwell AI chips, according to a report from Bloomberg.",
+      "title_zh": "SambaNova发布全新SN50芯片声称性能超越",
+      "summary_zh": "SambaNova发布了其最新芯片SN50，据称其速度达到了Nvidia Blackwell的五倍。由于具体基准测试细节尚待全面独立复核，目前暂标为待证实。",
+      "original_en": "SambaNova has unveiled its latest chip, the SN50, which it says is five times faster than Nvidia Blackwell and offers...",
       "source_platform": "Official Blog",
-      "author_handle": "@Gizmodo",
-      "image_url": "https://developer-blogs.nvidia.com/wp-content/uploads/2026/07/nvidia-rubin-gpu.webp",
-      "source_url": "https://gizmodo.com/nvidias-advanced-ai-chips-being-used-at-chinese-data-center-tied-to-alice-huang-2000846169",
-      "published_at": "2026-11-27 21:02",
+      "author_handle": "@HPCwire",
+      "image_url": "https://developer-blogs.nvidia.com/wp-content/uploads/2026/07/nvidia-rubin-gpu-chip-architecture-1.webp",
+      "source_url": "https://www.hpcwire.com/aiwire/topic/processors",
+      "published_at": "2026-11-24 16:00",
       "tags": [
-        "英伟达",
-        "Blackwell",
-        "AI芯片",
-        "数据中心"
+        "SambaNova",
+        "SN50",
+        "AI Chip",
+        "Hardware"
       ],
       "model_spec": null
     },
@@ -46,63 +46,21 @@
       "id": "radar-3",
       "category": "ai_chip",
       "verification": "official",
-      "title_zh": "英伟达GB300机架现身上海特定项目",
-      "summary_zh": "中国监管文件显示，相关企业在上海 Yangtze River Delta 项目中部署了英伟达 GB300 NVL72 等高端算力硬件。该硬件被用作商业银行贷款的抵押资产。",
-      "original_en": "The gear installed at the Yangtze River Delta Project included a GB300 NVL72 rack, among Nvidia’s most powerful products, according to a specification in documents.",
+      "title_zh": "Cadence推出用于芯片设计与验证的智能体AI系统",
+      "summary_zh": "Cadence正式引入了全新的Agentic AI系统，旨在全面加速基础设施领域的芯片设计与验证流程。此举标志着人工智能在半导体EDA自动化工具中的进一步深度应用。",
+      "original_en": "Cadence Introduces Agentic AI System for Chip Design and Verification",
       "source_platform": "Official Blog",
-      "author_handle": "@Bloomberg",
-      "image_url": "https://developer-blogs.nvidia.com/wp-content/uploads/2025/08/NVIDIA-Blackwell-Ultra-GPU-chip-png.webp",
-      "source_url": "https://www.bloomberg.com/news/articles/2026-11-27/nvidia-blackwell-chips-turn-up-at-china-site-tied-to-alice-huang",
-      "published_at": "2026-11-27 19:45",
+      "author_handle": "@Cadence",
+      "image_url": "",
+      "source_url": "https://www.hpcwire.com/aiwire/topic/processors",
+      "published_at": "2026-11-24 16:00",
       "tags": [
-        "英伟达",
-        "硬件部署",
-        "算力基础设施"
+        "Cadence",
+        "Agentic AI",
+        "Chip Design",
+        "EDA"
       ],
       "model_spec": null
-    },
-    {
-      "id": "radar-4",
-      "category": "ai_chip",
-      "verification": "official",
-      "title_zh": "上海数据中心部署英伟达高端Blackwell处理器",
-      "summary_zh": "金融市场消息指出，上海某数据中心设施引入了英伟达最高端的 Blackwell 系列处理器，相关设备已录入中国监管机构的文件中。",
-      "original_en": "Nvidia Corp.'s most powerful Blackwell processors have been found inside a Shanghai data center linked to Alice Huang.",
-      "source_platform": "Official Blog",
-      "author_handle": "@Yahoo Finance",
-      "image_url": "https://developer-blogs.nvidia.com/wp-content/uploads/2025/08/ConnectX-8-SuperNICs-png.webp",
-      "source_url": "https://finance.yahoo.com/technology/ai/articles/nvidia-blackwell-chips-found-shanghai-124008621.html",
-      "published_at": "2026-11-27 20:40",
-      "tags": [
-        "英伟达",
-        "GPU",
-        "合规与监管"
-      ],
-      "model_spec": null
-    },
-    {
-      "id": "radar-5",
-      "category": "model_release",
-      "verification": "unverified",
-      "title_zh": "开源社区探讨使用GrokBot运行无限制开源大模型",
-      "summary_zh": "开发者社区近期围绕如何利用工具在本地安全且高效地运行完全开源、无内容限制的大语言模型展开讨论与实践分享。",
-      "original_en": "How to Make Grok Bot Run the Most Dangerous Uncensored AI Models... Uncensored AI is the most dangerous thing you can run on your own computer right now.",
-      "source_platform": "X (Twitter)",
-      "author_handle": "@0xCarnagee",
-      "image_url": "https://cdn-uploads.huggingface.co/production/uploads/6303ca537373aacccd85d8a7/Vavh0-OMLyziFSafHWFCQ.png",
-      "source_url": "https://x.com/0xCarnagee/status/2124176093728878980",
-      "published_at": "2026-11-22 00:20",
-      "tags": [
-        "开源模型",
-        "本地部署",
-        "大模型微调"
-      ],
-      "model_spec": {
-        "is_open_weight": true,
-        "hf_repo": "",
-        "params_summary": "未公布",
-        "context_window": "未知"
-      }
     }
   ]
 }
