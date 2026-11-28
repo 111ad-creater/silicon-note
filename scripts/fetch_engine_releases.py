@@ -32,20 +32,30 @@ def fetch_github_json(url):
 def summarize_release_zh(name, version, notes):
     if not GEMINI_API_KEY or not notes:
         return f"{name} 发布 {version} 更新，包含性能调优与稳定性改进。"
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
     prompt = f"用 1 句客观精炼的中文（45字内，无 Emoji）总结 {name} {version} 的核心性能/架构改动：\n{notes[:1800]}"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {"temperature": 0.1},
     }
     data = json.dumps(payload).encode("utf-8")
-    req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"}, method="POST")
-    try:
-        with urllib.request.urlopen(req, timeout=25) as resp:
-            res = json.loads(resp.read().decode("utf-8"))
-            return res["candidates"][0]["content"]["parts"][0]["text"].strip()
-    except Exception:
-        return f"{name} 发布 {version}，包含算子调度与显存路径优化。"
+    for model_id in ("gemini-2.5-flash", "gemini-3.8-flash", "gemini-3.7-flash"):
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent"
+        req = urllib.request.Request(
+            url,
+            data=data,
+            headers={
+                "Content-Type": "application/json",
+                "x-goog-api-key": GEMINI_API_KEY,
+            },
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=25) as resp:
+                res = json.loads(resp.read().decode("utf-8"))
+                return res["candidates"][0]["content"]["parts"][0]["text"].strip()
+        except Exception:
+            continue
+    return f"{name} 发布 {version}，包含算子调度与显存路径优化。"
 
 
 def main():

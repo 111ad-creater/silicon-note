@@ -1,6 +1,7 @@
 import os
 import json
 import urllib.request
+import urllib.error
 from datetime import datetime, timezone, timedelta
 from email.utils import parsedate_to_datetime
 
@@ -19,16 +20,83 @@ SEARCH_QUERIES = [
 ]
 
 
-def post_json(url, payload):
+def post_json(url, payload, extra_headers=None):
     data = json.dumps(payload).encode("utf-8")
+    headers = {"Content-Type": "application/json"}
+    if extra_headers:
+        headers.update(extra_headers)
     req = urllib.request.Request(
         url,
         data=data,
-        headers={"Content-Type": "application/json"},
+        headers=headers,
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=45) as resp:
         return json.loads(resp.read().decode("utf-8"))
+
+
+def list_gemini_flash_models():
+    """Query live Gemini models list via x-goog-api-key header as fallback."""
+    url = "https://generativelanguage.googleapis.com/v1beta/models"
+    req = urllib.request.Request(url, headers={"x-goog-api-key": GEMINI_API_KEY})
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        flash_models = []
+        for m in data.get("models", []):
+            methods = m.get("supportedGenerationMethods") or []
+            name = (m.get("name") or "").replace("models/", "")
+            if "generateContent" in methods and "flash" in name.lower():
+                flash_models.append(name)
+        return flash_models
+    except Exception:
+        return []
+
+
+def call_gemini_generate(payload):
+    candidates = [
+        "gemini-2.5-flash",
+        "gemini-3.8-flash",
+        "gemini-3.7-flash",
+        "gemini-3.5-flash-lite",
+    ]
+    tried = set()
+    last_err = None
+
+    def try_models(model_list):
+        nonlocal last_err
+        for model_id in model_list:
+            if not model_id or model_id in tried:
+                continue
+            tried.add(model_id)
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent"
+            try:
+                return post_json(url, payload, {"x-goog-api-key": GEMINI_API_KEY})
+            except urllib.error.HTTPError as e:
+                body = ""
+                try:
+                    body = e.read().decode("utf-8", errors="ignore")[:300]
+                except Exception:
+                    pass
+                print(f"[Warn] Gemini model {model_id} HTTP {e.code}: {body}")
+                last_err = e
+                if e.code not in (400, 404):
+                    raise
+        return None
+
+    res = try_models(candidates)
+    if res is not None:
+        return res
+
+    discovered = list_gemini_flash_models()
+    if discovered:
+        res = try_models(discovered)
+        if res is not None:
+            return res
+
+    if last_err:
+        raise last_err
+    raise RuntimeError("No working Gemini model found")
 
 
 def enrich_open_model_spec(hf_repo: str):
@@ -181,7 +249,6 @@ def summarize_with_gemini(raw_items, url_to_time=None):
   }}]
 }}"""
 
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
     payload = {
         "contents": [
             {
@@ -199,7 +266,7 @@ def summarize_with_gemini(raw_items, url_to_time=None):
             "temperature": 0.15,
         },
     }
-    res = post_json(url, payload)
+    res = call_gemini_generate(payload)
     parsed = json.loads(res["candidates"][0]["content"]["parts"][0]["text"])
     valid_v = {"official", "freebie", "preprint", "unverified"}
     cleaned = []
